@@ -145,7 +145,7 @@ st.markdown(f"""
 
 div[data-testid="stExpander"]:last-of-type {{
     position:fixed; left:24px; bottom:24px;
-    width:420px; max-height:65vh; z-index:9999;
+    width:600px; max-height:65vh; z-index:9999;
     background:{C['bg']}; border:1px solid {C['border']};
     border-top:3px solid {C['fire_orange']}; border-radius:10px;
     box-shadow:0 8px 32px rgba(44,26,14,0.2); overflow:hidden;
