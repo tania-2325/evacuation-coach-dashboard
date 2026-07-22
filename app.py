@@ -284,11 +284,10 @@ def load_all(file_content):
 
 
 @st.cache_data
-def load_context(file_content):
+def get_context_tmp_path(file_content):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as tmp:
         tmp.write(file_content)
-        tmp_path = tmp.name
-    return build_package(tmp_path)
+        return tmp.name
 
 
 # ── Heatmap gradient ──────────────────────────────────────────────────────────
@@ -315,7 +314,7 @@ def heat_color(intensity, alpha=0.9):
 
 # ── Load ──────────────────────────────────────────────────────────────────────
 timeline_df, summary_df, smoke_timeline, health_timeline, events, exit_events, age_counts, disability_counts, total_agents, runtime = load_all(file_content)
-context_pkg  = load_context(file_content)
+context_tmp_path = get_context_tmp_path(file_content)
 total_frames = len(timeline_df)
 max_occ      = max(
     (timeline_df[c].max() for c in BUILDING_LAYOUT if c in timeline_df.columns),
@@ -333,6 +332,7 @@ for k, v in [("current_frame", 0), ("history", [])]:
 frame_idx    = st.session_state.current_frame
 row          = timeline_df.iloc[frame_idx]
 current_time = float(row["timestamp"])
+context_pkg  = build_package(context_tmp_path, end=current_time)
 zone_counts  = {z: int(row[z]) if z in row else 0 for z in BUILDING_LAYOUT}
 
 cumulative_exits = {}
