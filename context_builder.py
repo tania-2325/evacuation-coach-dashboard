@@ -20,9 +20,6 @@ ENVIRONMENT = {
     }
 }
 
-# Static definitions for every term shown on the dashboard.
-# Small and fixed, doesn't grow with simulation data, so it costs
-# the same handful of tokens no matter what question is asked.
 GLOSSARY = {
     "Total Agents": "The total number of agents who started inside the building at the beginning of the run.",
     "Agents Escaped": "The number of agents who have successfully exited through any exit, as of the current time shown.",
@@ -80,36 +77,50 @@ def summarize(records):
         disability_breakdown[p["disability"]] = disability_breakdown.get(p["disability"], 0) + 1
 
     # ── Agent exits (sensorType=2, hasExited=True) ────────────────────────
-    agent_exits = []
+    # Deduped by agentId: a per-tick telemetry record keeps showing
+    # hasExited=True on every tick after the agent exits, not just once.
+    # Without this dedup, one exited agent near the start of a long run
+    # produces one entry per remaining tick instead of one entry total.
+    exits_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2 and r.get("hasExited") is True:
-            agent_exits.append({
-                "agentId":      r.get("agentId"),
-                "exitLocation": r.get("location"),
-                "exitTime":     round(r.get("exitTime", r.get("timestamp", 0)), 2),
-                "ageBand":      r.get("ageBand", ""),
-                "disability":   r.get("disability", ""),
-                "healthAtExit": round(r.get("health", 0), 1),
-                "fireDamage":   round(r.get("fireDamageTotal", 0), 2),
-                "visDamage":    round(r.get("visibilityDamageTotal", 0), 2),
-                "path":         r.get("eventDetails", ""),
-            })
+            exits_by_agent[r.get("agentId")] = r
+    agent_exits = []
+    for agent_id, r in exits_by_agent.items():
+        agent_exits.append({
+            "agentId":      agent_id,
+            "exitLocation": r.get("location"),
+            "exitTime":     round(r.get("exitTime", r.get("timestamp", 0)), 2),
+            "ageBand":      r.get("ageBand", ""),
+            "disability":   r.get("disability", ""),
+            "healthAtExit": round(r.get("health", 0), 1),
+            "fireDamage":   round(r.get("fireDamageTotal", 0), 2),
+            "visDamage":    round(r.get("visibilityDamageTotal", 0), 2),
+            "path":         r.get("eventDetails", ""),
+        })
     agent_exits.sort(key=lambda x: x["exitTime"])
 
     # ── Trapped agents (sensorType=2, trapReason not empty/"None") ────────
-    trapped_agents = []
+    # Same dedup issue as agent_exits: an agent stuck for many ticks was
+    # generating one near-identical entry per tick. This is almost
+    # certainly what was blowing the token limit, since a handful of
+    # trapped agents sitting there for a while multiplies fast.
+    trapped_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2:
             reason = r.get("trapReason", "")
             if reason and reason != "None" and not r.get("hasExited", False):
-                trapped_agents.append({
-                    "agentId":    r.get("agentId"),
-                    "location":   r.get("location"),
-                    "trapReason": reason,
-                    "ageBand":    r.get("ageBand", ""),
-                    "disability": r.get("disability", ""),
-                    "healthAtTrap": round(r.get("health", 0), 1),
-                })
+                trapped_by_agent[r.get("agentId")] = r
+    trapped_agents = []
+    for agent_id, r in trapped_by_agent.items():
+        trapped_agents.append({
+            "agentId":      agent_id,
+            "location":     r.get("location"),
+            "trapReason":   r.get("trapReason", ""),
+            "ageBand":      r.get("ageBand", ""),
+            "disability":   r.get("disability", ""),
+            "healthAtTrap": round(r.get("health", 0), 1),
+        })
 
     # ── Evacuation triggers (sensorType=3, EVENT-Evac-*) ──────────────────
     evac_triggers = []
@@ -194,11 +205,6 @@ def summarize(records):
 def build_package(path, start=None, end=None):
     records = load_records(path)
 
-    # Filter to the requested time window before summarizing.
-    # Everything downstream (Sys-Summary lookup, exits, trapped, smoke,
-    # damage) already picks "last" or accumulates over the list it's given,
-    # so filtering here is enough to make the whole summary reflect
-    # "as of time T" instead of always being the full/final run.
     if start is not None:
         records = [r for r in records if r.get("timestamp", 0) >= start]
     if end is not None:
