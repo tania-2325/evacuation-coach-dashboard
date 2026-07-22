@@ -20,6 +20,20 @@ ENVIRONMENT = {
     }
 }
 
+# Static definitions for every term shown on the dashboard.
+# Small and fixed, doesn't grow with simulation data, so it costs
+# the same handful of tokens no matter what question is asked.
+GLOSSARY = {
+    "Total Agents": "The total number of agents who started inside the building at the beginning of the run.",
+    "Agents Escaped": "The number of agents who have successfully exited through any exit, as of the current time shown.",
+    "Vulnerable Inside": "Agents with an age band or disability tag (e.g. elderly, child, mobility-impaired) who are still inside and have not exited.",
+    "Avg Agent Health": "The average health value (0-100) across all agents still inside the building at the current time. Health drops from fire exposure and smoke/visibility damage.",
+    "Critical Health Inside": "The number of agents still inside whose health has dropped to a critical, low threshold.",
+    "Busiest Zone": "The zone (room or hallway) with the highest agent occupancy count at the current time.",
+    "Runtime": "How long the simulation has been running, in seconds, up to the current time shown.",
+    "Trapped": "Agents unable to reach an exit, for example blocked by fire, structural damage, or smoke, who have not exited.",
+}
+
 
 def load_records(path):
     records = []
@@ -35,7 +49,7 @@ def load_records(path):
 
 
 def summarize(records):
-    # ── Sys-Summary (final tick) ──────────────────────────────────────────
+    # ── Sys-Summary (final tick within whatever records were passed in) ──
     summaries = [r for r in records if r.get("sensorId") == "Sys-Summary"]
     exited = trapped = inside = 0
     vulnerable_inside = critical_health_inside = 0
@@ -179,8 +193,23 @@ def summarize(records):
 
 def build_package(path, start=None, end=None):
     records = load_records(path)
+
+    # Filter to the requested time window before summarizing.
+    # Everything downstream (Sys-Summary lookup, exits, trapped, smoke,
+    # damage) already picks "last" or accumulates over the list it's given,
+    # so filtering here is enough to make the whole summary reflect
+    # "as of time T" instead of always being the full/final run.
+    if start is not None:
+        records = [r for r in records if r.get("timestamp", 0) >= start]
+    if end is not None:
+        records = [r for r in records if r.get("timestamp", 0) <= end]
+
     summary = summarize(records)
-    return json.dumps({"environment": ENVIRONMENT, "summary": summary})
+    return json.dumps({
+        "environment": ENVIRONMENT,
+        "glossary": GLOSSARY,
+        "summary": summary,
+    })
 
 
 if __name__ == "__main__":
