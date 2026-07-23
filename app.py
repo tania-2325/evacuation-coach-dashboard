@@ -145,7 +145,7 @@ st.markdown(f"""
 
 div[data-testid="stExpander"]:last-of-type {{
     position:fixed; left:24px; bottom:24px;
-    width:600px; max-height:65vh; z-index:9999;
+    width:760px; max-height:80vh; z-index:9999;
     background:{C['bg']}; border:1px solid {C['border']};
     border-top:3px solid {C['fire_orange']}; border-radius:10px;
     box-shadow:0 8px 32px rgba(44,26,14,0.2); overflow:hidden;
@@ -155,7 +155,7 @@ div[data-testid="stExpander"]:last-of-type summary {{
     color:{C['text']}; background:{C['surface']}; border-radius:10px;
 }}
 div[data-testid="stExpander"]:last-of-type > details[open] > div {{
-    padding:14px 20px 20px 20px; max-height:55vh; overflow-y:auto;
+    padding:14px 20px 20px 20px; max-height:70vh; overflow-y:auto;
 }}
 
 .stButton > button {{
@@ -398,24 +398,30 @@ vuln_card   = "kpi-card-vuln" if vulnerable_now > 0 else "kpi-card-neutral"
 
 kpi_defs = [
     ("Total Agents",    f"{total_agents}",       "in this simulation",
-     "", "kpi-badge-grey", "👥", "kpi-card-neutral"),
+     "", "kpi-badge-grey", "👥", "kpi-card-neutral",
+     "Total number of agents who started inside the building."),
     ("Agents Escaped",  f"{escaped_now}",         f"of {total_agents} at {current_time:.1f}s",
-     "kpi-good", "kpi-badge-orange", "🚪", ""),
+     "kpi-good", "kpi-badge-orange", "🚪", "",
+     "Agents who have exited through any exit, as of the current time."),
     ("Vulnerable Inside", f"{vulnerable_now}",    f"at risk at {current_time:.1f}s",
-     "kpi-warn" if vulnerable_now > 0 else "", "kpi-badge-yellow", "⚠️", vuln_card),
+     "kpi-warn" if vulnerable_now > 0 else "", "kpi-badge-yellow", "⚠️", vuln_card,
+     "Elderly or mobility-impaired agents still inside, not yet exited."),
     ("Avg Agent Health", f"{avg_health_now:.0f}%", f"of agents still inside",
-     health_cls, "kpi-badge-green", "❤️", health_card),
+     health_cls, "kpi-badge-green", "❤️", health_card,
+     "Average health, 0 to 100 percent, across agents still inside. Drops from fire and smoke exposure."),
     ("Busiest Zone",    f"{busiest}",             f"{zone_counts[busiest]} agents at {current_time:.1f}s",
-     "", "kpi-badge-grey", "📍", "kpi-card-neutral"),
+     "", "kpi-badge-grey", "📍", "kpi-card-neutral",
+     "The zone with the highest agent count right now."),
     ("Runtime",         f"{runtime:.1f}s",        f"{total_frames} ticks captured",
-     "", "kpi-badge-grey", "⏱", "kpi-card-neutral"),
+     "", "kpi-badge-grey", "⏱", "kpi-card-neutral",
+     "How long the simulation has been running, in seconds."),
 ]
 
-for col, (label, value, sub, val_cls, badge_cls, icon, card_cls) in zip(
+for col, (label, value, sub, val_cls, badge_cls, icon, card_cls, tooltip) in zip(
     st.columns(6), kpi_defs
 ):
     col.markdown(f"""
-    <div class="kpi-card {card_cls}">
+    <div class="kpi-card {card_cls}" title="{tooltip}">
         <div class="kpi-top">
             <div class="kpi-label">{label}</div>
             <div class="kpi-badge {badge_cls}">{icon}</div>
@@ -456,9 +462,9 @@ with c3:
 
 # ── Main area ─────────────────────────────────────────────────────────────────
 LAYOUT_H = 480
-BAR_H    = 200
-AGE_H    = 200
-BOTTOM_H = 220
+BAR_H    = 340
+AGE_H    = 160
+BOTTOM_H = 170
 
 left_col, right_col = st.columns([1.4, 1])
 
@@ -506,7 +512,7 @@ with left_col:
                     config={"displayModeBar": False}, key="heatmap")
 
 with right_col:
-    bar_col, age_col = st.columns(2)
+    bar_col, age_col = st.columns([1.6, 1])
 
     with bar_col:
         st.markdown('<div class="sec-label">Occupancy by Zone</div>', unsafe_allow_html=True)
