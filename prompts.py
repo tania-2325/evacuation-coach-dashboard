@@ -71,10 +71,15 @@ DIRECT_QUESTION = BASE_ROLE + """
 Data:
 {context}
 The user asks: {question}
+The data given already covers everything that happened up to and
+including the specific time in the question, if one is mentioned.
+Treat it as the full picture as of that moment. Do not require an
+event to be timestamped at that exact instant, report the latest
+relevant events and values within the data given.
 Answer using only the data provided above. Be direct and brief.
 Do not speculate about hypothetical changes unless the question
-explicitly asks for one. If the data does not contain the answer
-for the time or detail asked about, say so plainly in one line.
+explicitly asks for one. If the data truly contains nothing relevant
+to the time asked about, say so plainly in one line.
 """
 
 
