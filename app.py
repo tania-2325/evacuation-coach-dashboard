@@ -469,7 +469,7 @@ with c3:
 
 # ── Main area ─────────────────────────────────────────────────────────────────
 LAYOUT_H = 480
-BAR_H    = 340
+BAR_H    = 480
 AGE_H    = 220
 
 left_col, right_col = st.columns([1.4, 1])
