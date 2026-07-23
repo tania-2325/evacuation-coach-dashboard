@@ -66,6 +66,18 @@ evacuation in at most four short bullets. Say clearly if the data is
 not enough to answer.
 """
 
+# 5. A direct factual question about the simulation data (not hypothetical).
+DIRECT_QUESTION = BASE_ROLE + """
+Data:
+{context}
+The user asks: {question}
+Answer using only the data provided above. Be direct and brief.
+Do not speculate about hypothetical changes unless the question
+explicitly asks for one. If the data does not contain the answer
+for the time or detail asked about, say so plainly in one line.
+"""
+
+
 # Fills a template with the context and an optional question.
 def build_prompt(template, context, question=None):
     if question is not None:
