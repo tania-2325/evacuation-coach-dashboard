@@ -79,12 +79,17 @@ relevant events and values within the data given.
 smoke_zones_active_now lists zones that currently still have smoke
 as of this moment, use it directly when asked what is happening or
 what zones have smoke right now.
+avg_agent_health_now holds the average health of agents currently
+still inside as of this moment, use it directly for average health
+questions.
+zone_occupancy_now holds the current agent count per zone, and
+busiest_zone_now names the single busiest zone, as of this moment.
+Use these directly for questions about occupancy or the busiest zone.
 Answer using only the data provided above. Be direct and brief.
 Do not speculate about hypothetical changes unless the question
 explicitly asks for one. If the data truly contains nothing relevant
 to the time asked about, say so plainly in one line.
 """
-
 
 # Fills a template with the context and an optional question.
 def build_prompt(template, context, question=None):
