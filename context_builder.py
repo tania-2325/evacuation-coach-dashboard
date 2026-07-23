@@ -20,6 +20,8 @@ ENVIRONMENT = {
     }
 }
 
+EXIT_ZONES = {"Exit 1", "Exit 2", "Exit 3"}
+
 GLOSSARY = {
     "Total Agents": "The total number of agents who started inside the building at the beginning of the run.",
     "Agents Escaped": "The number of agents who have successfully exited through any exit, as of the current time shown.",
@@ -96,6 +98,40 @@ def summarize(records):
         })
     agent_exits.sort(key=lambda x: x["exitTime"])
 
+    # ── Zone occupancy: current count per zone as of this filtered
+    # window ────────────────────────────────────────────────────────────
+    # Mirrors the dashboard's own Occupancy by Zone chart and Busiest
+    # Zone KPI exactly. Regular zones use each zone's most recent
+    # ZoneOccupancy reading (sensorType 0) within this window. Exit
+    # zones are handled specially, just like in app.py: an exit's live
+    # occupancy reading is basically meaningless (agents pass through
+    # and leave instantly), so exits instead use a cumulative count of
+    # how many agents have exited via that exit so far, built from
+    # agent_exits above rather than from sensorType 0 at all.
+    latest_zone_reading = {}
+    for r in records:
+        if r.get("sensorType") == 0:
+            loc = r.get("location", "Unknown")
+            ts  = r.get("timestamp", 0)
+            if loc not in latest_zone_reading or ts >= latest_zone_reading[loc].get("timestamp", 0):
+                latest_zone_reading[loc] = r
+
+    zone_occupancy_now = {}
+    for loc, r in latest_zone_reading.items():
+        zone_occupancy_now[loc] = int(r.get("value", 0))
+
+    exit_counts = {}
+    for e in agent_exits:
+        loc = e.get("exitLocation", "")
+        if loc in EXIT_ZONES:
+            exit_counts[loc] = exit_counts.get(loc, 0) + 1
+    for loc in EXIT_ZONES:
+        zone_occupancy_now[loc] = exit_counts.get(loc, 0)
+
+    busiest_zone_now = None
+    if zone_occupancy_now:
+        busiest_zone_now = max(zone_occupancy_now, key=zone_occupancy_now.get)
+
     # ── Trapped agents (sensorType=2, trapReason not empty/"None") ────────
     trapped_by_agent = {}
     for r in records:
@@ -113,6 +149,19 @@ def summarize(records):
             "disability":   r.get("disability", ""),
             "healthAtTrap": round(r.get("health", 0), 1),
         })
+
+    # ── Average agent health as of this filtered window's latest tick ────
+    health_records = [r for r in records
+                       if r.get("sensorType") == 2
+                       and not r.get("hasExited", False)
+                       and r.get("health", 0) > 0]
+    avg_agent_health_now = None
+    if health_records:
+        latest_ts = max(r.get("timestamp", 0) for r in health_records)
+        latest_health_records = [r for r in health_records if r.get("timestamp", 0) == latest_ts]
+        avg_agent_health_now = round(
+            sum(r.get("health", 0) for r in latest_health_records) / len(latest_health_records), 1
+        )
 
     # ── Evacuation triggers (sensorType=3, EVENT-Evac-*) ──────────────────
     evac_triggers = []
@@ -142,7 +191,6 @@ def summarize(records):
                 other_events.append(f"At {t}s [{sid}] {detail}")
 
     # ── Smoke detectors: first-ever alert per detector ────────────────────
-    # Useful for "when did smoke first start" style questions.
     smoke_events = []
     seen_smoke = set()
     for r in sorted(records, key=lambda x: x.get("timestamp", 0)):
@@ -159,15 +207,6 @@ def summarize(records):
 
     # ── Smoke: which zones currently have smoke, as of this filtered
     # window's latest data ─────────────────────────────────────────────────
-    # This is different from smoke_events above. That one only ever shows
-    # each detector's first alert, so a zone that was smoky 20s ago and
-    # still is now would look like "old news" to the AI with no way to
-    # confirm it's still ongoing. This block instead finds each detector's
-    # MOST RECENT reading within the filtered records and reports whether
-    # it's still non-Clear right now, matching what the dashboard's own
-    # smoke overlay shows at the same point in time. Bounded to one entry
-    # per detector (not per tick), so this does not reintroduce the
-    # per-tick token bloat that was fixed earlier.
     latest_smoke_by_sensor = {}
     for r in records:
         if r.get("sensorType") == 1:
@@ -206,6 +245,9 @@ def summarize(records):
         "still_inside_at_end":      inside,
         "vulnerable_still_inside":  vulnerable_inside,
         "critical_health_inside":   critical_health_inside,
+        "avg_agent_health_now":     avg_agent_health_now,
+        "zone_occupancy_now":       zone_occupancy_now,
+        "busiest_zone_now":         busiest_zone_now,
         "age_breakdown":            age_breakdown,
         "disability_breakdown":     disability_breakdown,
         "agent_profiles":           agent_profiles,
