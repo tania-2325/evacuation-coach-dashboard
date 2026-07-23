@@ -652,6 +652,8 @@ def parse_time_from_question(q):
     return None
 
 def is_off_topic(q):
+    if parse_time_from_question(q) is not None:
+        return False
     return not any(w in q.lower() for w in SIM_WORDS)
 
 def send(label, prompt):
