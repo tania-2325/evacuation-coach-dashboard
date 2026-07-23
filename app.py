@@ -77,8 +77,7 @@ st.set_page_config(page_title="Evacuation Coach", layout="wide",
 st.markdown(f"""
 <style>
 
-.st-key-age_donut [data-testid="stPlotlyChart"],
-.st-key-escape_donut [data-testid="stPlotlyChart"] {{
+.st-key-age_donut [data-testid="stPlotlyChart"] {{
     background:transparent !important;
     border:none !important;
     box-shadow:none !important;
@@ -470,9 +469,8 @@ with c3:
 
 # ── Main area ─────────────────────────────────────────────────────────────────
 LAYOUT_H = 480
-BAR_H    = 250
-AGE_H    = 190
-BOTTOM_H = 190
+BAR_H    = 340
+AGE_H    = 220
 
 left_col, right_col = st.columns([1.4, 1])
 
@@ -535,44 +533,21 @@ with right_col:
                 line=dict(color=C["border"], width=1),
             ),
             text=df_bar["Agents"], textposition="outside",
-            textfont=dict(size=9, color=C["text"]),
+            textfont=dict(size=13, color=C["text"]),
         ))
         fig_bar.update_layout(
             height=BAR_H, autosize=True,
             paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
-            margin=dict(l=8, r=24, t=8, b=20),
+            margin=dict(l=8, r=32, t=8, b=30),
             xaxis=dict(gridcolor=C["border"], color=C["soft"],
-                       title=dict(text="Agents", font=dict(size=9, color=C["soft"])),
+                       title=dict(text="Agents", font=dict(size=11, color=C["soft"])),
+                       tickfont=dict(size=11),
                        fixedrange=True),
-            yaxis=dict(color=C["text"], tickfont=dict(size=9), fixedrange=True),
+            yaxis=dict(color=C["text"], tickfont=dict(size=13), fixedrange=True),
             showlegend=False,
         )
         st.plotly_chart(fig_bar, use_container_width=True,
                         config={"displayModeBar": False}, key="bar_chart")
-
-        st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="sec-label">Agent Breakdown</div>', unsafe_allow_html=True)
-        if age_counts:
-            AGE_COLORS = ["#ecb02b", "#e38931", "#ab2a18", "#94a3b8"]
-            ages   = list(age_counts.keys())
-            counts = list(age_counts.values())
-            fig_age = go.Figure(go.Pie(
-                labels=ages, values=counts, hole=0.5,
-                marker=dict(colors=AGE_COLORS[:len(ages)], line=dict(color=C["surface"], width=2)),
-                textinfo="value", textfont=dict(size=11, color="#ffffff"),
-                hovertemplate="%{label}: %{value}<extra></extra>",
-            ))
-            fig_age.update_layout(
-                height=AGE_H, autosize=True,
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=10, r=10, t=10, b=40),
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2,
-                           xanchor="center", x=0.5, font=dict(size=10, color=C["text"])),
-            )
-            with st.container(key="age_donut"):
-                st.plotly_chart(fig_age, use_container_width=True,
-                                config={"displayModeBar": False}, key="age_chart")
 
     with col_b:
         st.markdown('<div class="sec-label">Recent Activity</div>', unsafe_allow_html=True)
@@ -618,26 +593,28 @@ with right_col:
         )
 
         st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="sec-label">Escape Status</div>', unsafe_allow_html=True)
-        fig_pie = go.Figure(go.Pie(
-            labels=["Escaped", "Still Inside"],
-            values=[max(escaped_now, 0), max(inside_now, 0)],
-            hole=0.55,
-            marker=dict(colors=[C["fire_yellow"], C["fire_orange"]], line=dict(color=C["surface"], width=2)),
-            textinfo="value", textfont=dict(size=12, color="#ffffff"),
-            hovertemplate="%{label}: %{value}<extra></extra>",
-        ))
-        fig_pie.update_layout(
-            height=BOTTOM_H, autosize=True,
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=10, r=10, t=10, b=40),
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.2,
-                       xanchor="center", x=0.5, font=dict(size=10, color=C["text"])),
-        )
-        with st.container(key="escape_donut"):
-            st.plotly_chart(fig_pie, use_container_width=True,
-                            config={"displayModeBar": False}, key="pie_chart")
+        st.markdown('<div class="sec-label">Agent Breakdown</div>', unsafe_allow_html=True)
+        if age_counts:
+            AGE_COLORS = ["#ecb02b", "#e38931", "#ab2a18", "#94a3b8"]
+            ages   = list(age_counts.keys())
+            counts = list(age_counts.values())
+            fig_age = go.Figure(go.Pie(
+                labels=ages, values=counts, hole=0.5,
+                marker=dict(colors=AGE_COLORS[:len(ages)], line=dict(color=C["surface"], width=2)),
+                textinfo="value", textfont=dict(size=11, color="#ffffff"),
+                hovertemplate="%{label}: %{value}<extra></extra>",
+            ))
+            fig_age.update_layout(
+                height=AGE_H, autosize=True,
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(l=10, r=10, t=10, b=40),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2,
+                           xanchor="center", x=0.5, font=dict(size=10, color=C["text"])),
+            )
+            with st.container(key="age_donut"):
+                st.plotly_chart(fig_age, use_container_width=True,
+                                config={"displayModeBar": False}, key="age_chart")
 
 # ── Coach panel ───────────────────────────────────────────────────────────────
 import re
