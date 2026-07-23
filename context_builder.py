@@ -77,10 +77,6 @@ def summarize(records):
         disability_breakdown[p["disability"]] = disability_breakdown.get(p["disability"], 0) + 1
 
     # ── Agent exits (sensorType=2, hasExited=True) ────────────────────────
-    # Deduped by agentId: a per-tick telemetry record keeps showing
-    # hasExited=True on every tick after the agent exits, not just once.
-    # Without this dedup, one exited agent near the start of a long run
-    # produces one entry per remaining tick instead of one entry total.
     exits_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2 and r.get("hasExited") is True:
@@ -101,10 +97,6 @@ def summarize(records):
     agent_exits.sort(key=lambda x: x["exitTime"])
 
     # ── Trapped agents (sensorType=2, trapReason not empty/"None") ────────
-    # Same dedup issue as agent_exits: an agent stuck for many ticks was
-    # generating one near-identical entry per tick. This is almost
-    # certainly what was blowing the token limit, since a handful of
-    # trapped agents sitting there for a while multiplies fast.
     trapped_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2:
@@ -149,7 +141,8 @@ def summarize(records):
             else:
                 other_events.append(f"At {t}s [{sid}] {detail}")
 
-    # ── Smoke detectors ───────────────────────────────────────────────────
+    # ── Smoke detectors: first-ever alert per detector ────────────────────
+    # Useful for "when did smoke first start" style questions.
     smoke_events = []
     seen_smoke = set()
     for r in sorted(records, key=lambda x: x.get("timestamp", 0)):
@@ -163,6 +156,32 @@ def summarize(records):
                     "firstDetected": round(r.get("timestamp", 0), 2),
                     "status": r.get("eventDetails", ""),
                 })
+
+    # ── Smoke: which zones currently have smoke, as of this filtered
+    # window's latest data ─────────────────────────────────────────────────
+    # This is different from smoke_events above. That one only ever shows
+    # each detector's first alert, so a zone that was smoky 20s ago and
+    # still is now would look like "old news" to the AI with no way to
+    # confirm it's still ongoing. This block instead finds each detector's
+    # MOST RECENT reading within the filtered records and reports whether
+    # it's still non-Clear right now, matching what the dashboard's own
+    # smoke overlay shows at the same point in time. Bounded to one entry
+    # per detector (not per tick), so this does not reintroduce the
+    # per-tick token bloat that was fixed earlier.
+    latest_smoke_by_sensor = {}
+    for r in records:
+        if r.get("sensorType") == 1:
+            sid = r.get("sensorId")
+            ts  = r.get("timestamp", 0)
+            if sid not in latest_smoke_by_sensor or ts >= latest_smoke_by_sensor[sid].get("timestamp", 0):
+                latest_smoke_by_sensor[sid] = r
+    smoke_zones_active_now = []
+    for sid, r in latest_smoke_by_sensor.items():
+        if r.get("eventDetails", "").strip() != "Clear":
+            smoke_zones_active_now.append({
+                "detector": sid,
+                "location": r.get("location"),
+            })
 
     # ── Structural damage (sensorType=6, last record per location) ────────
     dmg_by_loc = {}
@@ -198,6 +217,7 @@ def summarize(records):
         "blocked_exits":            blocks,
         "other_events":             other_events,
         "smoke_detectors_triggered":smoke_events,
+        "smoke_zones_active_now":   smoke_zones_active_now,
         "structural_damage":        structural_damage,
     }
 
