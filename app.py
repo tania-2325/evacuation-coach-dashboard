@@ -8,13 +8,13 @@ Deploy: push to GitHub, deploy via share.streamlit.io, add GROQ_API_KEY in Secre
 import json
 import tempfile
 from pathlib import Path
-from prompts import WHO_FAILED, BOTTLENECKS, RECOMMENDATIONS, WHAT_IF, DIRECT_QUESTION, build_prompt
 
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
 from context_builder import build_package
+from prompts import WHO_FAILED, BOTTLENECKS, RECOMMENDATIONS, WHAT_IF, DIRECT_QUESTION, build_prompt
 from llm_connection import ask_coach
 
 
@@ -321,14 +321,6 @@ max_occ      = max(
     default=1)
 max_occ = max(max_occ, 1)
 
-# Offset so the slider and every displayed time start at 0 at the first
-# real tick, instead of showing however many seconds passed before zone
-# tracking began (spawn/setup delay before agents start running).
-# Only affects what's shown to the user, current_time stays absolute
-# everywhere else (context builder, exit/summary/smoke lookups), so none
-# of that filtering logic changes.
-time_offset = float(timeline_df["timestamp"].iloc[0]) if total_frames else 0.0
-
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for k, v in [("current_frame", 0), ("history", [])]:
@@ -340,7 +332,6 @@ for k, v in [("current_frame", 0), ("history", [])]:
 frame_idx    = st.session_state.current_frame
 row          = timeline_df.iloc[frame_idx]
 current_time = float(row["timestamp"])
-display_time = current_time - time_offset
 context_pkg  = build_package(context_tmp_path, end=current_time)
 zone_counts  = {z: int(row[z]) if z in row else 0 for z in BUILDING_LAYOUT}
 
@@ -408,15 +399,15 @@ vuln_card   = "kpi-card-vuln" if vulnerable_now > 0 else "kpi-card-neutral"
 kpi_defs = [
     ("Total Agents",    f"{total_agents}",       "in this simulation",
      "", "kpi-badge-grey", "👥", "kpi-card-neutral"),
-    ("Agents Escaped",  f"{escaped_now}",         f"of {total_agents} at {display_time:.1f}s",
+    ("Agents Escaped",  f"{escaped_now}",         f"of {total_agents} at {current_time:.1f}s",
      "kpi-good", "kpi-badge-orange", "🚪", ""),
-    ("Vulnerable Inside", f"{vulnerable_now}",    f"at risk at {display_time:.1f}s",
+    ("Vulnerable Inside", f"{vulnerable_now}",    f"at risk at {current_time:.1f}s",
      "kpi-warn" if vulnerable_now > 0 else "", "kpi-badge-yellow", "⚠️", vuln_card),
     ("Avg Agent Health", f"{avg_health_now:.0f}%", f"of agents still inside",
      health_cls, "kpi-badge-green", "❤️", health_card),
-    ("Busiest Zone",    f"{busiest}",             f"{zone_counts[busiest]} agents at {display_time:.1f}s",
+    ("Busiest Zone",    f"{busiest}",             f"{zone_counts[busiest]} agents at {current_time:.1f}s",
      "", "kpi-badge-grey", "📍", "kpi-card-neutral"),
-    ("Runtime",         f"{runtime - time_offset:.1f}s", f"{total_frames} ticks captured",
+    ("Runtime",         f"{runtime:.1f}s",        f"{total_frames} ticks captured",
      "", "kpi-badge-grey", "⏱", "kpi-card-neutral"),
 ]
 
@@ -459,7 +450,7 @@ with c2:
 with c3:
     st.markdown(
         f'<div style="text-align:right;padding-top:8px;font-variant-numeric:tabular-nums;'
-        f'color:{C["text"]};font-weight:700;font-size:1.05rem;">{display_time:.2f}s</div>',
+        f'color:{C["text"]};font-weight:700;font-size:1.05rem;">{current_time:.2f}s</div>',
         unsafe_allow_html=True)
 
 
@@ -587,7 +578,7 @@ with right_col:
                     f"</tr>"
                 )
             else:
-                ts      = f"{e['timestamp'] - time_offset:.1f}s"
+                ts      = f"{e['timestamp']:.1f}s"
                 txt_css = f"color:{C['fire_red']};font-weight:600;" if e["warn"] else f"color:{C['text']};"
                 rows_html += (
                     f"<tr>"
@@ -644,7 +635,8 @@ def is_what_if(q):
 
 def parse_time_from_question(q):
     """Pulls a time like '3 seconds', '20s', 'at 15.5 sec' out of a typed
-    question. Returns it in display time (matching what's on screen),
+    question. Returns it directly as the raw simulation time (they're the
+    same thing now that the logger zeroes at the real run start),
     or None if no time reference was found."""
     m = re.search(r'(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s\b)', q.lower())
     if m:
@@ -678,14 +670,11 @@ with st.expander("Ask the Coach", expanded=False):
             st.session_state.history.append(("user", typed))
             st.session_state.history.append(("coach", REFUSAL))
         else:
-            asked_display_time = parse_time_from_question(typed)
-            if asked_display_time is not None:
-                # Convert the display time the user typed back to the raw
-                # absolute timestamp the log actually uses, then build
-                # context for that specific moment, not wherever the
-                # slider currently sits.
-                asked_raw_time = asked_display_time + time_offset
-                query_context = build_package(context_tmp_path, end=asked_raw_time)
+            asked_time = parse_time_from_question(typed)
+            if asked_time is not None:
+                # Raw time and displayed time are the same now, so the
+                # parsed number goes straight into build_package.
+                query_context = build_package(context_tmp_path, end=asked_time)
             else:
                 # No time mentioned, answer about wherever the slider is now.
                 query_context = context_pkg
