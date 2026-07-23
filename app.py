@@ -628,16 +628,21 @@ with right_col:
 import re
 
 WHATIF_WORDS = ["what if", "suppose", "instead of", "were to", "would happen if"]
+TOTAL_WORDS  = ["total", "overall", "altogether", "by the end", "at the end",
+                "in the end", "final", "entire run", "whole run", "in total"]
 
 def is_what_if(q):
     ql = q.lower()
     return any(w in ql for w in WHATIF_WORDS)
 
+def is_total_question(q):
+    ql = q.lower()
+    return any(w in ql for w in TOTAL_WORDS)
+
 def parse_time_from_question(q):
     """Pulls a time like '3 seconds', '20s', 'at 15.5 sec' out of a typed
-    question. Returns it directly as the raw simulation time (they're the
-    same thing now that the logger zeroes at the real run start),
-    or None if no time reference was found."""
+    question. Returns it directly as the raw simulation time, or None if
+    no time reference was found."""
     m = re.search(r'(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s\b)', q.lower())
     if m:
         return float(m.group(1))
@@ -655,9 +660,10 @@ def send(label, prompt):
     st.session_state.history.append(("coach", reply))
 
 with st.expander("Ask the Coach", expanded=False):
+    preset_as_of = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run."
     for i, (label, template) in enumerate(MENU.items()):
         if st.button(label, use_container_width=True, key=f"coach_pre_{i}"):
-            send(label, build_prompt(template, context_pkg))
+            send(label, build_prompt(template, context_pkg, as_of=preset_as_of))
             st.rerun()
 
     for who, text in st.session_state.history:
@@ -672,17 +678,26 @@ with st.expander("Ask the Coach", expanded=False):
         else:
             asked_time = parse_time_from_question(typed)
             if asked_time is not None:
-                # Raw time and displayed time are the same now, so the
-                # parsed number goes straight into build_package.
+                # A specific time was named, build context for exactly
+                # that moment.
                 query_context = build_package(context_tmp_path, end=asked_time)
+                as_of_note = f"This data reflects the simulation as of {asked_time:.1f} seconds into the run."
+            elif is_total_question(typed):
+                # "in total" / "at the end" style questions mean the
+                # complete, final outcome of the whole run, not wherever
+                # the slider currently sits.
+                query_context = build_package(context_tmp_path)
+                as_of_note = "This data covers the complete run from start to finish, this is the final outcome."
             else:
-                # No time mentioned, answer about wherever the slider is now.
+                # No time and no "total" wording, answer about wherever
+                # the slider is right now, but say so explicitly.
                 query_context = context_pkg
+                as_of_note = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run, not the final outcome of the run."
 
             if is_what_if(typed):
-                send(typed, build_prompt(WHAT_IF, query_context, typed))
+                send(typed, build_prompt(WHAT_IF, query_context, typed, as_of_note))
             else:
-                send(typed, build_prompt(DIRECT_QUESTION, query_context, typed))
+                send(typed, build_prompt(DIRECT_QUESTION, query_context, typed, as_of_note))
         st.rerun()
 
     if st.session_state.history:
