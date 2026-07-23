@@ -518,38 +518,9 @@ with left_col:
                     config={"displayModeBar": False}, key="heatmap")
 
 with right_col:
-    col_a, col_b = st.columns([1.3, 1])
+    col_a, col_b = st.columns([1, 1.3])
 
     with col_a:
-        st.markdown('<div class="sec-label">Occupancy by Zone</div>', unsafe_allow_html=True)
-        df_bar = pd.DataFrame({
-            "Zone":   list(zone_counts.keys()),
-            "Agents": list(zone_counts.values()),
-        }).sort_values("Agents", ascending=True)
-        fig_bar = go.Figure(go.Bar(
-            x=df_bar["Agents"], y=df_bar["Zone"], orientation="h",
-            marker=dict(
-                color=[heat_color(min(v/max_occ,1.0)) for v in df_bar["Agents"]],
-                line=dict(color=C["border"], width=1),
-            ),
-            text=df_bar["Agents"], textposition="outside",
-            textfont=dict(size=13, color=C["text"]),
-        ))
-        fig_bar.update_layout(
-            height=BAR_H, autosize=True,
-            paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
-            margin=dict(l=8, r=32, t=8, b=30),
-            xaxis=dict(gridcolor=C["border"], color=C["soft"],
-                       title=dict(text="Agents", font=dict(size=11, color=C["soft"])),
-                       tickfont=dict(size=11),
-                       fixedrange=True),
-            yaxis=dict(color=C["text"], tickfont=dict(size=13), fixedrange=True),
-            showlegend=False,
-        )
-        st.plotly_chart(fig_bar, use_container_width=True,
-                        config={"displayModeBar": False}, key="bar_chart")
-
-    with col_b:
         st.markdown('<div class="sec-label">Recent Activity</div>', unsafe_allow_html=True)
         display_events = list(reversed(events_now[-7:])) if events_now else []
         while len(display_events) < 7:
@@ -600,21 +571,49 @@ with right_col:
             counts = list(age_counts.values())
             fig_age = go.Figure(go.Pie(
                 labels=ages, values=counts, hole=0.5,
-                marker=dict(colors=AGE_COLORS[:len(ages)], line=dict(color=C["surface"], width=2)),
+                marker=dict(colors=AGE_COLORS[:len(ages)], line=dict(color=C["bg"], width=2)),
                 textinfo="value", textfont=dict(size=11, color="#ffffff"),
                 hovertemplate="%{label}: %{value}<extra></extra>",
             ))
             fig_age.update_layout(
                 height=AGE_H, autosize=True,
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
                 margin=dict(l=10, r=10, t=10, b=40),
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=-0.2,
                            xanchor="center", x=0.5, font=dict(size=10, color=C["text"])),
             )
-            with st.container(key="age_donut"):
-                st.plotly_chart(fig_age, use_container_width=True,
-                                config={"displayModeBar": False}, key="age_chart")
+            st.plotly_chart(fig_age, use_container_width=True,
+                            config={"displayModeBar": False}, key="age_chart")
+
+    with col_b:
+        st.markdown('<div class="sec-label">Occupancy by Zone</div>', unsafe_allow_html=True)
+        df_bar = pd.DataFrame({
+            "Zone":   list(zone_counts.keys()),
+            "Agents": list(zone_counts.values()),
+        }).sort_values("Agents", ascending=True)
+        fig_bar = go.Figure(go.Bar(
+            x=df_bar["Agents"], y=df_bar["Zone"], orientation="h",
+            marker=dict(
+                color=[heat_color(min(v/max_occ,1.0)) for v in df_bar["Agents"]],
+                line=dict(color=C["border"], width=1),
+            ),
+            text=df_bar["Agents"], textposition="outside",
+            textfont=dict(size=13, color=C["text"]),
+        ))
+        fig_bar.update_layout(
+            height=BAR_H, autosize=True,
+            paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
+            margin=dict(l=8, r=32, t=8, b=30),
+            xaxis=dict(gridcolor=C["border"], color=C["soft"],
+                       title=dict(text="Agents", font=dict(size=11, color=C["soft"])),
+                       tickfont=dict(size=11),
+                       fixedrange=True),
+            yaxis=dict(color=C["text"], tickfont=dict(size=13), fixedrange=True),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_bar, use_container_width=True,
+                        config={"displayModeBar": False}, key="bar_chart")
 
 # ── Coach panel ───────────────────────────────────────────────────────────────
 import re
