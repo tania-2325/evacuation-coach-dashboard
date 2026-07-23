@@ -150,18 +150,23 @@ def summarize(records):
             "healthAtTrap": round(r.get("health", 0), 1),
         })
 
-    # ── Average agent health as of this filtered window's latest tick ────
-    health_records = [r for r in records
-                       if r.get("sensorType") == 2
-                       and not r.get("hasExited", False)
-                       and r.get("health", 0) > 0]
-    avg_agent_health_now = None
-    if health_records:
-        latest_ts = max(r.get("timestamp", 0) for r in health_records)
-        latest_health_records = [r for r in health_records if r.get("timestamp", 0) == latest_ts]
-        avg_agent_health_now = round(
-            sum(r.get("health", 0) for r in latest_health_records) / len(latest_health_records), 1
-        )
+   # ── Average agent health as of this filtered window's latest tick ────
+    # Uses each agent's own most recent reading within this window,
+    # rather than requiring every agent share the exact same timestamp.
+    # Requiring an exact shared timestamp caused this to collapse to a
+    # single stray agent in testing (whichever one happened to log at
+    # that literal instant), instead of averaging across everyone
+    # actually still inside. Taking each agent's own latest reading
+    # gives a representative average regardless of logging timing.
+    latest_health_by_agent = {}
+    for r in records:
+        if r.get("sensorType") == 2 and not r.get("hasExited", False):
+            agent_id = r.get("agentId")
+            ts = r.get("timestamp", 0)
+            if agent_id not in latest_health_by_agent or ts >= latest_health_by_agent[agent_id].get("timestamp", 0):
+                latest_health_by_agent[agent_id] = r
+    healthy_values = [r.get("health", 0) for r in latest_health_by_agent.values() if r.get("health", 0) > 0]
+    avg_agent_health_now = round(sum(healthy_values) / len(healthy_values), 1) if healthy_values else None
 
     # ── Evacuation triggers (sensorType=3, EVENT-Evac-*) ──────────────────
     evac_triggers = []
