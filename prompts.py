@@ -76,6 +76,9 @@ including the specific time in the question, if one is mentioned.
 Treat it as the full picture as of that moment. Do not require an
 event to be timestamped at that exact instant, report the latest
 relevant events and values within the data given.
+smoke_zones_active_now lists zones that currently still have smoke
+as of this moment, use it directly when asked what is happening or
+what zones have smoke right now.
 Answer using only the data provided above. Be direct and brief.
 Do not speculate about hypothetical changes unless the question
 explicitly asks for one. If the data truly contains nothing relevant
