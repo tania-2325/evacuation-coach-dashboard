@@ -15,7 +15,6 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from context_builder import build_package
-from prompts import WHO_FAILED, BOTTLENECKS, RECOMMENDATIONS, WHAT_IF, build_prompt
 from llm_connection import ask_coach
 
 
