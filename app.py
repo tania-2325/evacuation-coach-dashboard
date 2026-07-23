@@ -8,6 +8,7 @@ Deploy: push to GitHub, deploy via share.streamlit.io, add GROQ_API_KEY in Secre
 import json
 import tempfile
 from pathlib import Path
+from prompts import WHO_FAILED, BOTTLENECKS, RECOMMENDATIONS, WHAT_IF, DIRECT_QUESTION, build_prompt
 
 import streamlit as st
 import pandas as pd
@@ -634,6 +635,23 @@ with right_col:
 
 
 # ── Coach panel ───────────────────────────────────────────────────────────────
+import re
+
+WHATIF_WORDS = ["what if", "suppose", "instead of", "were to", "would happen if"]
+
+def is_what_if(q):
+    ql = q.lower()
+    return any(w in ql for w in WHATIF_WORDS)
+
+def parse_time_from_question(q):
+    """Pulls a time like '3 seconds', '20s', 'at 15.5 sec' out of a typed
+    question. Returns it in display time (matching what's on screen),
+    or None if no time reference was found."""
+    m = re.search(r'(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s\b)', q.lower())
+    if m:
+        return float(m.group(1))
+    return None
+
 def is_off_topic(q):
     return not any(w in q.lower() for w in SIM_WORDS)
 
@@ -659,7 +677,22 @@ with st.expander("Ask the Coach", expanded=False):
             st.session_state.history.append(("user", typed))
             st.session_state.history.append(("coach", REFUSAL))
         else:
-            send(typed, build_prompt(WHAT_IF, context_pkg, typed))
+            asked_display_time = parse_time_from_question(typed)
+            if asked_display_time is not None:
+                # Convert the display time the user typed back to the raw
+                # absolute timestamp the log actually uses, then build
+                # context for that specific moment, not wherever the
+                # slider currently sits.
+                asked_raw_time = asked_display_time + time_offset
+                query_context = build_package(context_tmp_path, end=asked_raw_time)
+            else:
+                # No time mentioned, answer about wherever the slider is now.
+                query_context = context_pkg
+
+            if is_what_if(typed):
+                send(typed, build_prompt(WHAT_IF, query_context, typed))
+            else:
+                send(typed, build_prompt(DIRECT_QUESTION, query_context, typed))
         st.rerun()
 
     if st.session_state.history:
