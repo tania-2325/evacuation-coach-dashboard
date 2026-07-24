@@ -7,6 +7,7 @@ Deploy: push to GitHub, deploy via share.streamlit.io, add GROQ_API_KEY in Secre
 
 import json
 import tempfile
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -178,6 +179,33 @@ div[data-testid="stExpander"]:last-of-type > details[open] > div {{
 </style>
 """, unsafe_allow_html=True)
 
+# ── Group access control ────────────────────────────────────────────────────
+# Controls whether the Ask the Coach panel renders at all, so the same
+# dashboard serves both the with-AI and without-AI study conditions. Enter
+# the correct code to unlock the panel for a session, leave it blank or
+# wrong and it never appears.
+def get_unlock_code():
+    try:
+        return st.secrets["COACH_UNLOCK_CODE"]
+    except Exception:
+        return os.environ.get("COACH_UNLOCK_CODE")
+
+if "coach_unlocked" not in st.session_state:
+    st.session_state.coach_unlocked = False
+
+if not st.session_state.coach_unlocked:
+    with st.expander("Session code", expanded=False):
+        entered_code = st.text_input(
+            "Enter session code to enable the AI coach for this session",
+            type="password", key="group_code_input",
+        )
+        if entered_code:
+            correct_code = get_unlock_code()
+            if correct_code and entered_code == correct_code:
+                st.session_state.coach_unlocked = True
+                st.rerun()
+            else:
+                st.caption("Incorrect code.")
 
 # ── File upload (replaces the old fixed DATA_PATH) ────────────────────────────
 uploaded_file = st.file_uploader("Upload your simulation_data.jsonl", type=["jsonl"])
@@ -653,48 +681,49 @@ def send(label, prompt):
         reply = ask_coach(prompt)
     st.session_state.history.append(("coach", reply))
 
-with st.expander("Ask the Coach", expanded=False):
-    preset_as_of = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run."
-    for i, (label, template) in enumerate(MENU.items()):
-        if st.button(label, use_container_width=True, key=f"coach_pre_{i}"):
-            send(label, build_prompt(template, context_pkg, as_of=preset_as_of))
+if st.session_state.coach_unlocked:
+    with st.expander("Ask the Coach", expanded=False):
+        preset_as_of = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run."
+        for i, (label, template) in enumerate(MENU.items()):
+            if st.button(label, use_container_width=True, key=f"coach_pre_{i}"):
+                send(label, build_prompt(template, context_pkg, as_of=preset_as_of))
+                st.rerun()
+
+        for who, text in st.session_state.history:
+            with st.chat_message("user" if who == "user" else "assistant"):
+                st.write(text)
+
+        typed = st.chat_input("Ask anything about this run", key="coach_input")
+        if typed:
+            if is_off_topic(typed):
+                st.session_state.history.append(("user", typed))
+                st.session_state.history.append(("coach", REFUSAL))
+            else:
+                asked_time = parse_time_from_question(typed)
+                if asked_time is not None:
+                    # A specific time was named, build context for exactly
+                    # that moment.
+                    query_context = build_package(context_tmp_path, end=asked_time)
+                    as_of_note = f"This data reflects the simulation as of {asked_time:.1f} seconds into the run."
+                elif is_total_question(typed):
+                    # "in total" / "at the end" style questions mean the
+                    # complete, final outcome of the whole run, not wherever
+                    # the slider currently sits.
+                    query_context = build_package(context_tmp_path)
+                    as_of_note = "This data covers the complete run from start to finish, this is the final outcome."
+                else:
+                    # No time and no "total" wording, answer about wherever
+                    # the slider is right now, but say so explicitly.
+                    query_context = context_pkg
+                    as_of_note = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run, not the final outcome of the run."
+
+                if is_what_if(typed):
+                    send(typed, build_prompt(WHAT_IF, query_context, typed, as_of_note))
+                else:
+                    send(typed, build_prompt(DIRECT_QUESTION, query_context, typed, as_of_note))
             st.rerun()
 
-    for who, text in st.session_state.history:
-        with st.chat_message("user" if who == "user" else "assistant"):
-            st.write(text)
-
-    typed = st.chat_input("Ask anything about this run", key="coach_input")
-    if typed:
-        if is_off_topic(typed):
-            st.session_state.history.append(("user", typed))
-            st.session_state.history.append(("coach", REFUSAL))
-        else:
-            asked_time = parse_time_from_question(typed)
-            if asked_time is not None:
-                # A specific time was named, build context for exactly
-                # that moment.
-                query_context = build_package(context_tmp_path, end=asked_time)
-                as_of_note = f"This data reflects the simulation as of {asked_time:.1f} seconds into the run."
-            elif is_total_question(typed):
-                # "in total" / "at the end" style questions mean the
-                # complete, final outcome of the whole run, not wherever
-                # the slider currently sits.
-                query_context = build_package(context_tmp_path)
-                as_of_note = "This data covers the complete run from start to finish, this is the final outcome."
-            else:
-                # No time and no "total" wording, answer about wherever
-                # the slider is right now, but say so explicitly.
-                query_context = context_pkg
-                as_of_note = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run, not the final outcome of the run."
-
-            if is_what_if(typed):
-                send(typed, build_prompt(WHAT_IF, query_context, typed, as_of_note))
-            else:
-                send(typed, build_prompt(DIRECT_QUESTION, query_context, typed, as_of_note))
-        st.rerun()
-
-    if st.session_state.history:
-        if st.button("Clear", key="clear_chat"):
-            st.session_state.history = []
-            st.rerun()
+        if st.session_state.history:
+            if st.button("Clear", key="clear_chat"):
+                st.session_state.history = []
+                st.rerun()
