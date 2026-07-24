@@ -504,6 +504,7 @@ left_col, right_col = st.columns([1.4, 1])
 with left_col:
     st.markdown('<div class="sec-label">Building Layout</div>', unsafe_allow_html=True)
     fig = go.Figure()
+    hover_x, hover_y, hover_text = [], [], []
     for zone, pos in BUILDING_LAYOUT.items():
         occ       = zone_counts.get(zone, 0)
         intensity = min(occ / max_occ, 1.0)
@@ -532,6 +533,25 @@ with left_col:
             text=label_text, showarrow=False,
             font=dict(size=11, color=txt_col, family="Inter, sans-serif"),
         )
+
+        # Center point for this zone, used below to attach hover data.
+        # Shapes drawn above have no hover support on their own, so an
+        # invisible marker at the zone's center is what actually makes
+        # hovering show live info instead of just a static label.
+        smoke_status = "Smoke present" if zone in smoke_zones_now else "Clear, no smoke detected"
+        hover_x.append(pos["x"] + pos["width"] / 2)
+        hover_y.append(pos["y"] + pos["height"] / 2)
+        hover_text.append(f"<b>{zone}</b><br>Agents inside: {occ}<br>{smoke_status}")
+
+    # Invisible hover layer, one point per zone, sized to roughly cover
+    # each zone's area so hovering anywhere over a zone shows its data.
+    fig.add_trace(go.Scatter(
+        x=hover_x, y=hover_y, mode="markers",
+        marker=dict(size=34, opacity=0),
+        hovertext=hover_text, hoverinfo="text",
+        showlegend=False,
+    ))
+
     fig.update_layout(
         xaxis=dict(range=[-0.3, 10.3], showgrid=False, showticklabels=False,
                    zeroline=False, fixedrange=True),
@@ -539,7 +559,11 @@ with left_col:
                    zeroline=False, fixedrange=True),
         height=LAYOUT_H, autosize=True,
         paper_bgcolor=C["bg"], plot_bgcolor=C["surface"],
-        hovermode=False, margin=dict(l=24, r=24, t=24, b=24),
+        hovermode="closest", margin=dict(l=24, r=24, t=24, b=24),
+        hoverlabel=dict(
+            bgcolor=C["bg"], bordercolor=C["fire_orange"],
+            font=dict(color=C["text"], size=12, family="Inter, sans-serif"),
+        ),
     )
     st.plotly_chart(fig, use_container_width=True,
                     config={"displayModeBar": False}, key="heatmap")
