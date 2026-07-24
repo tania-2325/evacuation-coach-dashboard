@@ -25,12 +25,13 @@ EXIT_ZONES = {"Exit 1", "Exit 2", "Exit 3"}
 GLOSSARY = {
     "Total Agents": "The total number of agents who started inside the building at the beginning of the run.",
     "Agents Escaped": "The number of agents who have successfully exited through any exit, as of the current time shown.",
+    "Agents Trapped": "The number of agents confirmed unable to escape, for example blocked by fire or a collapsed route, as of the current time shown. This does not include agents who are still evacuating and simply have not exited yet.",
     "Vulnerable Inside": "Agents with an age band or disability tag (e.g. elderly, child, mobility-impaired) who are still inside and have not exited.",
     "Avg Agent Health": "The average health value (0-100) across all agents still inside the building at the current time. Health drops from fire exposure and smoke/visibility damage.",
     "Critical Health Inside": "The number of agents still inside whose health has dropped to a critical, low threshold.",
     "Busiest Zone": "The zone (room or hallway) with the highest agent occupancy count at the current time.",
     "Runtime": "How long the simulation has been running, in seconds, up to the current time shown.",
-    "Trapped": "Agents unable to reach an exit, for example blocked by fire, structural damage, or smoke, who have not exited.",
+    "Recent Activity": "A live list of the most recent timed events in the run, such as smoke being detected in a zone, an agent starting to evacuate, or an agent exiting the building, shown up to the current time.",
 }
 
 
