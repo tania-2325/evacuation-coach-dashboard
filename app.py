@@ -7,7 +7,6 @@ Deploy: push to GitHub, deploy via share.streamlit.io, add GROQ_API_KEY in Secre
 
 import json
 import tempfile
-import os
 from pathlib import Path
 
 import streamlit as st
@@ -179,35 +178,33 @@ div[data-testid="stExpander"]:last-of-type > details[open] > div {{
 </style>
 """, unsafe_allow_html=True)
 
-# ── Group access control ────────────────────────────────────────────────────
-# Controls whether the Ask the Coach panel renders at all, so the same
-# dashboard serves both the with-AI and without-AI study conditions. Enter
-# the correct code to unlock the panel for a session, leave it blank or
-# wrong and it never appears.
-def get_unlock_code():
-    try:
-        return st.secrets["COACH_UNLOCK_CODE"]
-    except Exception:
-        return os.environ.get("COACH_UNLOCK_CODE")
+# ── Study condition ──────────────────────────────────────────────────────────
+# Condition is set entirely by the URL query parameter, never by anything
+# visible or interactive inside the app, so a participant can never see or
+# flip it. This is read fresh from the URL on every rerun, not stored in
+# session_state, so nothing that happens later in the session (uploading a
+# file, moving the slider, asking the coach a question) can ever change or
+# reset it.
+#   ?g=a → control condition, no coach
+#   ?g=b → treatment condition, coach enabled
+# A missing or unrecognized value is treated as a hard error rather than
+# silently defaulting to one condition, so a mistyped or missing link can
+# never quietly reassign someone's condition.
+GROUP_CODES = {"a": False, "b": True}
 
-if "coach_unlocked" not in st.session_state:
-    st.session_state.coach_unlocked = False
+group_param = st.query_params.get("g")
 
-if not st.session_state.coach_unlocked:
-    with st.expander("Session code", expanded=False):
-        entered_code = st.text_input(
-            "Enter session code to enable the AI coach for this session",
-            type="password", key="group_code_input",
-        )
-        if entered_code:
-            correct_code = get_unlock_code()
-            if correct_code and entered_code == correct_code:
-                st.session_state.coach_unlocked = True
-                st.rerun()
-            else:
-                st.caption("Incorrect code.")
+if group_param not in GROUP_CODES:
+    st.error(
+        "This link is missing a valid session parameter and cannot be used. "
+        "Please use the exact link provided for your session."
+    )
+    st.stop()
 
-# ── File upload (replaces the old fixed DATA_PATH) ────────────────────────────
+coach_unlocked = GROUP_CODES[group_param]
+
+
+# ── File upload ────────────────────────────────────────────────────────────
 uploaded_file = st.file_uploader("Upload your simulation_data.jsonl", type=["jsonl"])
 if uploaded_file is None:
     st.info("Upload a simulation_data.jsonl file to begin.")
@@ -681,7 +678,7 @@ def send(label, prompt):
         reply = ask_coach(prompt)
     st.session_state.history.append(("coach", reply))
 
-if st.session_state.coach_unlocked:
+if coach_unlocked:
     with st.expander("Ask the Coach", expanded=False):
         preset_as_of = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run."
         for i, (label, template) in enumerate(MENU.items()):
