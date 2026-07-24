@@ -357,12 +357,12 @@ if len(summary_at):
     s               = summary_at.iloc[-1]
     inside_now      = int(s.get("inside",  0))
     escaped_now     = int(s.get("exited",  0))
-    vulnerable_now  = int(s.get("vulnerable", 0))
+    trapped_now     = int(s.get("trapped", 0))
 else:
     inside_now      = total_agents
     escaped_now     = 0
-    vulnerable_now  = 0
-
+    trapped_now     = 0
+    
 if not health_timeline.empty:
     h_at = health_timeline[health_timeline["timestamp"] <= current_time]
     avg_health_now = round(h_at["avg_health"].iloc[-1], 1) if len(h_at) else 100.0
@@ -399,10 +399,9 @@ with hr:
 # ── KPI row ───────────────────────────────────────────────────────────────────
 st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
 
-health_cls  = "kpi-green" if avg_health_now >= 80 else ("kpi-good" if avg_health_now >= 50 else "kpi-warn")
-health_card = "kpi-card-health" if avg_health_now >= 80 else ("" if avg_health_now >= 50 else "kpi-card-warn")
-vuln_card   = "kpi-card-vuln" if vulnerable_now > 0 else "kpi-card-neutral"
-
+health_cls    = "kpi-green" if avg_health_now >= 80 else ("kpi-good" if avg_health_now >= 50 else "kpi-warn")
+health_card   = "kpi-card-health" if avg_health_now >= 80 else ("" if avg_health_now >= 50 else "kpi-card-warn")
+trapped_card  = "kpi-card-vuln" if trapped_now > 0 else "kpi-card-neutral"
 kpi_defs = [
     ("Total Agents",    f"{total_agents}",       "in this simulation",
      "", "kpi-badge-grey", "👥", "kpi-card-neutral",
@@ -410,9 +409,9 @@ kpi_defs = [
     ("Agents Escaped",  f"{escaped_now}",         f"of {total_agents} at {current_time:.1f}s",
      "kpi-good", "kpi-badge-orange", "🚪", "",
      "Agents who have exited through any exit, as of the current time."),
-    ("Vulnerable Inside", f"{vulnerable_now}",    f"at risk at {current_time:.1f}s",
-     "kpi-warn" if vulnerable_now > 0 else "", "kpi-badge-yellow", "⚠️", vuln_card,
-     "Elderly or mobility-impaired agents still inside, not yet exited."),
+    ("Agents Trapped", f"{trapped_now}",    f"confirmed trapped at {current_time:.1f}s",
+     "kpi-warn" if trapped_now > 0 else "", "kpi-badge-yellow", "⚠️", trapped_card,
+     "Agents confirmed unable to escape, for example blocked by fire, as of the current time. Does not include agents still evacuating who simply have not exited yet."),
     ("Avg Agent Health", f"{avg_health_now:.0f}%", f"of agents still inside",
      health_cls, "kpi-badge-green", "❤️", health_card,
      "Average health, 0 to 100 percent, across agents still inside. Drops from fire and smoke exposure."),
