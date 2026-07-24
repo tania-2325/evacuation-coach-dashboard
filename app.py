@@ -618,7 +618,7 @@ with right_col:
 
     with col_b:
         st.markdown('<div class="sec-label">Occupancy by Zone</div>', unsafe_allow_html=True)
-       non_exit_counts = {z: v for z, v in zone_counts.items() if z not in EXIT_ZONES}
+        non_exit_counts = {z: v for z, v in zone_counts.items() if z not in EXIT_ZONES}
         df_bar = pd.DataFrame({
             "Zone":   list(non_exit_counts.keys()),
             "Agents": list(non_exit_counts.values()),
