@@ -32,7 +32,8 @@ Rules you must always follow:
 6. Some fields are precomputed for you, use them directly instead of
    recounting or re-deriving from raw lists:
    exited and not_escaped hold the total counts of agents who escaped
-   and who did not, use these directly rather than counting list items
+   and who are confirmed trapped (shown on the dashboard as Agents
+   Trapped), use these directly rather than counting list items
    yourself.
    avg_agent_health_now holds the average health of agents currently
    still inside as of this moment.
