@@ -672,6 +672,47 @@ with right_col:
         st.plotly_chart(fig_bar, use_container_width=True,
                         config={"displayModeBar": False}, key="bar_chart")
 
+# ── Demographic Escape Progression ───────────────────────────────────────────
+# Static view of the complete run: for each age group, how many of that
+# group remain inside over time, starting at that group's total headcount
+# and stepping down at each exit. Always shows the full run regardless of
+# where the timeline slider sits, so the group that reaches zero last is
+# visible at a glance.
+st.markdown('<div class="sec-label">Demographic Escape Progression</div>', unsafe_allow_html=True)
+
+AGE_COLORS_MAP = {"Young": "#ecb02b", "Adult": "#ab2a18", "Elderly": "#e38931"}
+
+fig_demo = go.Figure()
+for age, total in age_counts.items():
+    exit_times = sorted(
+        e["timestamp"] for e in exit_events if e.get("ageBand") == age
+    )
+    x_vals = [0.0] + exit_times
+    y_vals = [total] + [total - (i + 1) for i in range(len(exit_times))]
+    if runtime > x_vals[-1]:
+        x_vals.append(runtime)
+        y_vals.append(y_vals[-1])
+    fig_demo.add_trace(go.Scatter(
+        x=x_vals, y=y_vals, mode="lines", name=age,
+        line=dict(shape="hv", width=3, color=AGE_COLORS_MAP.get(age, C["soft"])),
+    ))
+
+fig_demo.update_layout(
+    height=260, autosize=True,
+    paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
+    margin=dict(l=40, r=20, t=10, b=40),
+    xaxis=dict(title=dict(text="Time (seconds)", font=dict(size=11, color=C["soft"])),
+               gridcolor=C["border"], color=C["soft"], tickfont=dict(size=10),
+               fixedrange=True),
+    yaxis=dict(title=dict(text="Agents still inside", font=dict(size=11, color=C["soft"])),
+               gridcolor=C["border"], color=C["soft"], tickfont=dict(size=10),
+               fixedrange=True),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+               xanchor="right", x=1, font=dict(size=10, color=C["text"])),
+)
+st.plotly_chart(fig_demo, use_container_width=True,
+                config={"displayModeBar": False}, key="demo_chart")
+
 # ── Coach panel ───────────────────────────────────────────────────────────────
 import re
 
