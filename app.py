@@ -282,6 +282,27 @@ def load_all(file_content):
         disability_counts[dis] = disability_counts.get(dis, 0) + 1
 
     events = []
+    # Exit records (sensorType 2, hasExited=True) repeat every tick after
+    # an agent exits, since their tracker keeps logging telemetry even
+    # after leaving. Dedupe to one record per agent, and use exitTime (the
+    # actual moment they exited) instead of the raw per-tick timestamp,
+    # which keeps advancing long after the agent is already gone. Without
+    # this, exit counts and anything built from exit_events silently
+    # multiply per agent by however many ticks ran after their exit.
+    exit_by_agent = {}
+    for r in rows:
+        if r.get("sensorType") == 2 and r.get("hasExited") is True:
+            exit_by_agent[r.get("agentId")] = r
+    exit_events = []
+    for agent_id, r in exit_by_agent.items():
+        exit_events.append({
+            "agentId":   agent_id,
+            "location":  r.get("location", ""),
+            "ageBand":   r.get("ageBand", ""),
+            "exit_time": r.get("exitTime", r.get("timestamp", 0)),
+        })
+
+    events = []
     for r in sorted(rows, key=lambda x: x.get("timestamp", 0)):
         st_ = r.get("sensorType")
         if st_ == 3 and r.get("sensorId") != "Sys-Summary":
@@ -298,17 +319,13 @@ def load_all(file_content):
                 "text": f"Smoke detected at {loc}",
                 "warn": True,
             })
-        if st_ == 2 and r.get("hasExited") is True:
-            age = r.get("ageBand","")
-            events.append({
-                "timestamp": r["timestamp"],
-                "text": f"{r['agentId']} ({age}) escaped via {r['location']}",
-                "warn": False,
-            })
+    for e in exit_events:
+        events.append({
+            "timestamp": e["exit_time"],
+            "text": f"{e['agentId']} ({e['ageBand']}) escaped via {e['location']}",
+            "warn": False,
+        })
     events = sorted(events, key=lambda x: x["timestamp"])
-
-    exit_events = [r for r in rows
-                   if r.get("sensorType") == 2 and r.get("hasExited") is True]
 
     total_agents = int(summary_df["inside"].iloc[0]) if len(summary_df) else 0
     runtime      = float(timeline["timestamp"].iloc[-1]) if len(timeline) else 0.0
@@ -371,7 +388,7 @@ context_pkg  = build_package(context_tmp_path, end=current_time)
 zone_counts  = {z: int(row[z]) if z in row else 0 for z in BUILDING_LAYOUT}
 
 cumulative_exits = {}
-for e in [ev for ev in exit_events if ev["timestamp"] <= current_time]:
+for e in [ev for ev in exit_events if ev["exit_time"] <= current_time]:
     loc = e.get("location", "")
     if loc in EXIT_ZONES:
         cumulative_exits[loc] = cumulative_exits.get(loc, 0) + 1
@@ -410,6 +427,22 @@ if not smoke_timeline.empty:
 events_now = [e for e in events if e["timestamp"] <= current_time]
 
 
+# ── Header ────────────────────────────────────────────────────────────────────
+hl, hr = st.columns([3, 1])
+with hl:
+    st.markdown(
+        '<div class="app-title">Evacuation Coach Dashboard</div>'
+        '<div class="app-sub">Simulation analyst · single-run view</div>',
+        unsafe_allow_html=True)
+with hr:
+    st.markdown(
+        f'<div class="app-sub" style="text-align:right;padding-top:10px;">'
+        f'Run: {uploaded_file.name}</div>',
+        unsafe_allow_html=True)
+
+st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+
 # ── Timeline ──────────────────────────────────────────────────────────────────
 st.markdown('<div class="sec-label">Simulation Timeline</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns([1, 10, 1])
@@ -435,22 +468,6 @@ with c3:
     st.markdown(
         f'<div style="text-align:right;padding-top:8px;font-variant-numeric:tabular-nums;'
         f'color:{C["text"]};font-weight:700;font-size:1.05rem;">{current_time:.2f}s</div>',
-        unsafe_allow_html=True)
-
-st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
-
-
-# ── Header ────────────────────────────────────────────────────────────────────
-hl, hr = st.columns([3, 1])
-with hl:
-    st.markdown(
-        '<div class="app-title">Evacuation Coach Dashboard</div>'
-        '<div class="app-sub">Simulation analyst · single-run view</div>',
-        unsafe_allow_html=True)
-with hr:
-    st.markdown(
-        f'<div class="app-sub" style="text-align:right;padding-top:10px;">'
-        f'Run: {uploaded_file.name}</div>',
         unsafe_allow_html=True)
 
 
@@ -499,8 +516,9 @@ for col, (label, value, sub, val_cls, badge_cls, icon, card_cls, tooltip) in zip
 
 # ── Main area ─────────────────────────────────────────────────────────────────
 LAYOUT_H = 480
-BAR_H    = 480
+BAR_H    = 300
 AGE_H    = 220
+DEMO_H   = 230
 
 left_col, right_col = st.columns([1.4, 1])
 
@@ -572,8 +590,8 @@ with left_col:
                     config={"displayModeBar": False}, key="heatmap")
 
 with right_col:
-    col_a, col_b = st.columns([1, 1.3])
-
+    col_a, col_b = st.columns([0.8, 1.5])
+    
     with col_a:
         st.markdown('<div class="sec-label">Recent Activity</div>', unsafe_allow_html=True)
         display_events = list(reversed(events_now[-7:])) if events_now else []
@@ -672,46 +690,42 @@ with right_col:
         st.plotly_chart(fig_bar, use_container_width=True,
                         config={"displayModeBar": False}, key="bar_chart")
 
-# ── Demographic Escape Progression ───────────────────────────────────────────
-# Static view of the complete run: for each age group, how many of that
-# group remain inside over time, starting at that group's total headcount
-# and stepping down at each exit. Always shows the full run regardless of
-# where the timeline slider sits, so the group that reaches zero last is
-# visible at a glance.
-st.markdown('<div class="sec-label">Demographic Escape Progression</div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-label">Demographic Escape Progression</div>', unsafe_allow_html=True)
 
-AGE_COLORS_MAP = {"Young": "#ecb02b", "Adult": "#ab2a18", "Elderly": "#e38931"}
+        AGE_COLORS_MAP = {"Young": "#ecb02b", "Adult": "#ab2a18", "Elderly": "#e38931"}
 
-fig_demo = go.Figure()
-for age, total in age_counts.items():
-    exit_times = sorted(
-        e["timestamp"] for e in exit_events if e.get("ageBand") == age
-    )
-    x_vals = [0.0] + exit_times
-    y_vals = [total] + [total - (i + 1) for i in range(len(exit_times))]
-    if runtime > x_vals[-1]:
-        x_vals.append(runtime)
-        y_vals.append(y_vals[-1])
-    fig_demo.add_trace(go.Scatter(
-        x=x_vals, y=y_vals, mode="lines", name=age,
-        line=dict(shape="hv", width=3, color=AGE_COLORS_MAP.get(age, C["soft"])),
-    ))
+        fig_demo = go.Figure()
+        for age, total in age_counts.items():
+            exit_times = sorted(
+                e["exit_time"] for e in exit_events if e.get("ageBand") == age
+            )
+            x_vals = [0.0] + exit_times
+            y_vals = [total] + [total - (i + 1) for i in range(len(exit_times))]
+            if runtime > x_vals[-1]:
+                x_vals.append(runtime)
+                y_vals.append(y_vals[-1])
+            fig_demo.add_trace(go.Scatter(
+                x=x_vals, y=y_vals, mode="lines+markers", name=age,
+                line=dict(width=2.5, color=AGE_COLORS_MAP.get(age, C["soft"])),
+                marker=dict(size=6, color=AGE_COLORS_MAP.get(age, C["soft"])),
+            ))
 
-fig_demo.update_layout(
-    height=260, autosize=True,
-    paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
-    margin=dict(l=40, r=20, t=10, b=40),
-    xaxis=dict(title=dict(text="Time (seconds)", font=dict(size=11, color=C["soft"])),
-               gridcolor=C["border"], color=C["soft"], tickfont=dict(size=10),
-               fixedrange=True),
-    yaxis=dict(title=dict(text="Agents still inside", font=dict(size=11, color=C["soft"])),
-               gridcolor=C["border"], color=C["soft"], tickfont=dict(size=10),
-               fixedrange=True),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02,
-               xanchor="right", x=1, font=dict(size=10, color=C["text"])),
-)
-st.plotly_chart(fig_demo, use_container_width=True,
-                config={"displayModeBar": False}, key="demo_chart")
+        fig_demo.update_layout(
+            height=DEMO_H, autosize=True,
+            paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
+            margin=dict(l=40, r=20, t=10, b=40),
+            xaxis=dict(title=dict(text="Time (seconds)", font=dict(size=11, color=C["soft"])),
+                       gridcolor=C["border"], color=C["soft"], tickfont=dict(size=10),
+                       fixedrange=True),
+            yaxis=dict(title=dict(text="Agents still inside", font=dict(size=11, color=C["soft"])),
+                       gridcolor=C["border"], color=C["soft"], tickfont=dict(size=10),
+                       fixedrange=True),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                       xanchor="right", x=1, font=dict(size=10, color=C["text"])),
+        )
+        st.plotly_chart(fig_demo, use_container_width=True,
+                        config={"displayModeBar": False}, key="demo_chart")
 
 # ── Coach panel ───────────────────────────────────────────────────────────────
 import re
