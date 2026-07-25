@@ -410,6 +410,36 @@ if not smoke_timeline.empty:
 events_now = [e for e in events if e["timestamp"] <= current_time]
 
 
+# ── Timeline ──────────────────────────────────────────────────────────────────
+st.markdown('<div class="sec-label">Simulation Timeline</div>', unsafe_allow_html=True)
+c1, c2, c3 = st.columns([1, 10, 1])
+
+with c1:
+    if st.button("Reset", use_container_width=True, key="reset_btn"):
+        st.session_state.current_frame = 0
+        st.session_state["timeline_slider"] = 0
+        st.rerun()
+
+with c2:
+    new_frame = st.slider(
+        "Timeline", min_value=0,
+        max_value=max(total_frames - 1, 1),
+        value=st.session_state.current_frame,
+        step=1, label_visibility="collapsed", key="timeline_slider",
+    )
+    if new_frame != st.session_state.current_frame:
+        st.session_state.current_frame = new_frame
+        st.rerun()
+
+with c3:
+    st.markdown(
+        f'<div style="text-align:right;padding-top:8px;font-variant-numeric:tabular-nums;'
+        f'color:{C["text"]};font-weight:700;font-size:1.05rem;">{current_time:.2f}s</div>',
+        unsafe_allow_html=True)
+
+st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
+
+
 # ── Header ────────────────────────────────────────────────────────────────────
 hl, hr = st.columns([3, 1])
 with hl:
@@ -465,33 +495,6 @@ for col, (label, value, sub, val_cls, badge_cls, icon, card_cls, tooltip) in zip
     </div>
     """, unsafe_allow_html=True)
 
-
-# ── Slider ────────────────────────────────────────────────────────────────────
-st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
-c1, c2, c3 = st.columns([1, 10, 1])
-
-with c1:
-    if st.button("Reset", use_container_width=True, key="reset_btn"):
-        st.session_state.current_frame = 0
-        st.session_state["timeline_slider"] = 0
-        st.rerun()
-
-with c2:
-    new_frame = st.slider(
-        "Timeline", min_value=0,
-        max_value=max(total_frames - 1, 1),
-        value=st.session_state.current_frame,
-        step=1, label_visibility="collapsed", key="timeline_slider",
-    )
-    if new_frame != st.session_state.current_frame:
-        st.session_state.current_frame = new_frame
-        st.rerun()
-
-with c3:
-    st.markdown(
-        f'<div style="text-align:right;padding-top:8px;font-variant-numeric:tabular-nums;'
-        f'color:{C["text"]};font-weight:700;font-size:1.05rem;">{current_time:.2f}s</div>',
-        unsafe_allow_html=True)
 
 
 # ── Main area ─────────────────────────────────────────────────────────────────
@@ -582,9 +585,9 @@ with right_col:
             if e is None:
                 rows_html += (
                     f"<tr>"
-                    f"<td style='padding:6px 8px;font-size:0.75rem;"
+                    f"<td style='padding:6px 8px;font-size:0.75rem;white-space:nowrap;"
                     f"border-bottom:1px solid {C['tbl_border']};color:{C['muted']};'>--</td>"
-                    f"<td style='padding:6px 8px;font-size:0.75rem;"
+                    f"<td style='padding:6px 8px;font-size:0.75rem;white-space:nowrap;"
                     f"border-bottom:1px solid {C['tbl_border']};color:{C['muted']};'>No event</td>"
                     f"</tr>"
                 )
@@ -596,21 +599,23 @@ with right_col:
                     f"<td style='padding:6px 8px;color:{C['fire_orange']};font-weight:700;"
                     f"white-space:nowrap;font-size:0.75rem;"
                     f"border-bottom:1px solid {C['tbl_border']};'>{ts}</td>"
-                    f"<td style='padding:6px 8px;{txt_css}font-size:0.75rem;"
+                    f"<td style='padding:6px 8px;{txt_css}font-size:0.75rem;white-space:nowrap;"
                     f"border-bottom:1px solid {C['tbl_border']};'>{e['text']}</td>"
                     f"</tr>"
                 )
         st.markdown(
-            f"<table style='width:100%;border-collapse:collapse;"
-            f"border:1px solid {C['tbl_border']};border-radius:8px;overflow:hidden;'>"
+            f"<div style='width:100%;overflow-x:auto;border:1px solid {C['tbl_border']};"
+            f"border-radius:8px;'>"
+            f"<table style='width:max-content;min-width:100%;border-collapse:collapse;'>"
             f"<thead><tr>"
             f"<th style='padding:7px 8px;background:{C['tbl_head']};color:{C['soft']};"
-            f"font-size:0.7rem;text-align:left;font-weight:700;'>TIME</th>"
+            f"font-size:0.7rem;text-align:left;font-weight:700;white-space:nowrap;'>TIME</th>"
             f"<th style='padding:7px 8px;background:{C['tbl_head']};color:{C['soft']};"
-            f"font-size:0.7rem;text-align:left;font-weight:700;'>EVENT</th>"
+            f"font-size:0.7rem;text-align:left;font-weight:700;white-space:nowrap;'>EVENT</th>"
             f"</tr></thead>"
             f"<tbody style='background:{C['tbl_body']};'>{rows_html}</tbody>"
-            f"</table>",
+            f"</table>"
+            f"</div>",
             unsafe_allow_html=True,
         )
 
