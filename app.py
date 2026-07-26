@@ -806,37 +806,37 @@ if coach_unlocked:
                 st.write(text)
 
         typed = st.chat_input("Ask anything about this run", key="coach_input")
-    if typed:
-        # No Python-side keyword filter here anymore. A fixed word list
-        # can never cover every valid phrasing (it just missed
-        # "congestion" and "demographic" in testing), and it has no way
-        # to understand synonyms at all. The model itself, guided by
-        # GUARD in prompts.py, correctly declines genuinely unrelated
-        # questions in its own words, so relevance judgment is left
-        # entirely to it instead of a brittle pre-check.
-        asked_time = parse_time_from_question(typed)
-        if asked_time is not None:
-            # A specific time was named, build context for exactly
-            # that moment.
-            query_context = build_package(context_tmp_path, end=asked_time)
-            as_of_note = f"This data reflects the simulation as of {asked_time:.1f} seconds into the run."
-        elif is_total_question(typed):
-            # "in total" / "at the end" style questions mean the
-            # complete, final outcome of the whole run, not wherever
-            # the slider currently sits.
-            query_context = build_package(context_tmp_path)
-            as_of_note = "This data covers the complete run from start to finish, this is the final outcome."
-        else:
-            # No time and no "total" wording, answer about wherever
-            # the slider is right now, but say so explicitly.
-            query_context = context_pkg
-            as_of_note = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run, not the final outcome of the run."
+        if typed:
+            # No Python-side keyword filter here anymore. A fixed word list
+            # can never cover every valid phrasing (it just missed
+            # "congestion" and "demographic" in testing), and it has no way
+            # to understand synonyms at all. The model itself, guided by
+            # GUARD in prompts.py, correctly declines genuinely unrelated
+            # questions in its own words, so relevance judgment is left
+            # entirely to it instead of a brittle pre-check.
+            asked_time = parse_time_from_question(typed)
+            if asked_time is not None:
+                # A specific time was named, build context for exactly
+                # that moment.
+                query_context = build_package(context_tmp_path, end=asked_time)
+                as_of_note = f"This data reflects the simulation as of {asked_time:.1f} seconds into the run."
+            elif is_total_question(typed):
+                # "in total" / "at the end" style questions mean the
+                # complete, final outcome of the whole run, not wherever
+                # the slider currently sits.
+                query_context = build_package(context_tmp_path)
+                as_of_note = "This data covers the complete run from start to finish, this is the final outcome."
+            else:
+                # No time and no "total" wording, answer about wherever
+                # the slider is right now, but say so explicitly.
+                query_context = context_pkg
+                as_of_note = f"This data reflects the current dashboard view, {current_time:.1f} seconds into the run, not the final outcome of the run."
 
-        if is_what_if(typed):
-            send(typed, build_prompt(WHAT_IF, query_context, typed, as_of_note))
-        else:
-            send(typed, build_prompt(DIRECT_QUESTION, query_context, typed, as_of_note))
-        st.rerun()
+            if is_what_if(typed):
+                send(typed, build_prompt(WHAT_IF, query_context, typed, as_of_note))
+            else:
+                send(typed, build_prompt(DIRECT_QUESTION, query_context, typed, as_of_note))
+            st.rerun()
 
         if st.session_state.history:
             if st.button("Clear", key="clear_chat"):
