@@ -362,7 +362,7 @@ def summarize(records):
                 warnings.append(f"At {t}s, {detail}")
             elif sid.startswith("EVENT-Flee"):
                 flees.append(f"At {t}s, {detail}")
-            elif sid.startswith("EVENT-Exit"):
+            elif sid.startswith("EVENT-Exit") or sid.startswith("EVENT-UserBlock"):
                 blocks.append(f"At {t}s, {detail}")
             else:
                 other_events.append(f"At {t}s [{sid}] {detail}")
