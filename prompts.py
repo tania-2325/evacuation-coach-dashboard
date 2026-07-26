@@ -85,6 +85,11 @@ Additional rules for this question specifically:
     it while narrating the list. A wrong age band or group assigned to
     a named agent is a factual error, treat it with the same care as
     a wrong number.
+13. When an answer covers more than one item, group, agent, or category,
+    structure it with short bullet points or clear line breaks, one
+    per item, rather than one dense paragraph. Use plain paragraphs
+    only for a single, simple point. A stressed reader should be able
+    to scan the answer quickly, not parse a wall of text.
 """
 
 # 1. The key question, who did not escape and why.
