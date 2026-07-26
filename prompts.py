@@ -105,6 +105,12 @@ Additional rules for this question specifically:
     Use these directly for any question about when or where congestion
     peaked, do not try to infer this from zone_occupancy_now, which
     only reflects a single moment, not the whole run.
+16. age_breakdown and disability_breakdown give the total count of
+    agents in each age band or disability category across the whole
+    simulation, regardless of whether they escaped, use these directly
+    for questions like how many agents were young, elderly, or had a
+    specific disability, rather than counting through agent_profiles
+    yourself.
 """
 
 # 1. The key question, who did not escape and why.
