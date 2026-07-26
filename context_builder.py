@@ -155,7 +155,14 @@ def summarize(records):
             "visDamage":    round(r.get("visibilityDamageTotal", 0), 2),
             "path":         r.get("eventDetails", ""),
         })
-    agent_exits.sort(key=lambda x: x["exitTime"])
+   agent_exits.sort(key=lambda x: x["exitTime"])
+
+    # ── Exit usage: how many agents escaped through each named exit ──────
+    exit_usage_counts = {}
+    for r in agent_exits:
+        loc = r.get("exitLocation")
+        exit_usage_counts[loc] = exit_usage_counts.get(loc, 0) + 1
+    busiest_exit = max(exit_usage_counts, key=exit_usage_counts.get) if exit_usage_counts else None
 
     # ── Zone occupancy: current count per zone as of this filtered
     # window ────────────────────────────────────────────────────────────
@@ -310,8 +317,10 @@ def summarize(records):
         "vulnerable_still_inside":  vulnerable_inside,
         "critical_health_inside":   critical_health_inside,
         "avg_agent_health_now":     avg_agent_health_now,
-        "zone_occupancy_now":       zone_occupancy_now,
+       "zone_occupancy_now":       zone_occupancy_now,
         "busiest_zone_now":         busiest_zone_now,
+        "exit_usage_counts":        exit_usage_counts,
+        "busiest_exit":             busiest_exit,
         "age_breakdown":            age_breakdown,
         "disability_breakdown":     disability_breakdown,
         "agent_profiles":           agent_profiles,
