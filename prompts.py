@@ -78,10 +78,13 @@ Additional rules for this question specifically:
     times and any trapped members to explain why, using details like
     trap reason, rather than assuming age itself caused a difference
     unless the data supports it.
-12. exit_usage_counts shows how many agents have escaped through each
-    named exit, and busiest_exit names whichever exit has been used by
-    the most agents so far, use these directly for any question about
-    which exit was used most or how many escaped through a specific exit.
+12. When listing several agents at once, for example several trapped
+    or escaped agents grouped by age band, check each agent's actual
+    ageBand or group membership directly against the data for that
+    specific agent before stating it, rather than assuming or recalling
+    it while narrating the list. A wrong age band or group assigned to
+    a named agent is a factual error, treat it with the same care as
+    a wrong number.
 """
 
 # 1. The key question, who did not escape and why.
