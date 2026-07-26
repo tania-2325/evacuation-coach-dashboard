@@ -392,6 +392,18 @@ for k, v in [("current_frame", 0), ("history", [])]:
     if k not in st.session_state:
         st.session_state[k] = v
 
+# A newly uploaded file can have fewer ticks than whatever was loaded
+# before in this same browser session. Without this, the slider position
+# left over from the old file could point past the end of the new one
+# and crash. Reset to the start whenever the file changes, and clamp
+# either way so this can never crash regardless of cause.
+if st.session_state.get("loaded_file_name") != uploaded_file.name:
+    st.session_state.loaded_file_name = uploaded_file.name
+    st.session_state.current_frame = 0
+    st.session_state["timeline_slider"] = 0
+
+st.session_state.current_frame = min(st.session_state.current_frame, max(total_frames - 1, 0))
+
 
 # ── Frame values ──────────────────────────────────────────────────────────────
 frame_idx    = st.session_state.current_frame
