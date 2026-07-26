@@ -267,6 +267,16 @@ def summarize(records):
         })
     agent_exits.sort(key=lambda x: x["exitTime"])
 
+    # ── Disabled agents currently still inside, as of this filtered
+    # window ──────────────────────────────────────────────────────────
+    disabled_total_in_window = sum(
+        1 for p in agent_profiles if p.get("disability") not in (None, "", "None")
+    )
+    disabled_exited_in_window = sum(
+        1 for e in agent_exits if e.get("disability") not in (None, "", "None")
+    )
+    disabled_inside_now = disabled_total_in_window - disabled_exited_in_window
+
     # ── Exit usage: how many agents escaped through each named exit ──────
     exit_usage_counts = {}
     for r in agent_exits:
@@ -416,6 +426,7 @@ def summarize(records):
         "busiest_zone_now":         busiest_zone_now,
         "exit_usage_counts":        exit_usage_counts,
         "busiest_exit":             busiest_exit,
+        "disabled_inside_now":      disabled_inside_now,
         "age_breakdown":            age_breakdown,
         "disability_breakdown":     disability_breakdown,
         "agent_profiles":           agent_profiles,
