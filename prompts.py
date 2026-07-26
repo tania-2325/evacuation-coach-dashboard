@@ -111,6 +111,11 @@ Additional rules for this question specifically:
     for questions like how many agents were young, elderly, or had a
     specific disability, rather than counting through agent_profiles
     yourself.
+17. disabled_inside_now gives the number of agents with a disability
+    who are still inside and have not exited, as of the current time,
+    matching the dashboard's Disabled Inside card exactly. Use this
+    directly rather than deriving it from disability_breakdown, which
+    is a total count across the whole simulation regardless of time.
 """
 
 # 1. The key question, who did not escape and why.
