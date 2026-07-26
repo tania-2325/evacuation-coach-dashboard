@@ -48,6 +48,7 @@ def load_records(path):
                     continue
     return records
 
+
 def build_demographic_summary(records):
     """Always computed from the complete, unfiltered run, matching the
     static Demographic Escape Progression chart on the dashboard, which
@@ -106,6 +107,115 @@ def build_demographic_summary(records):
         "group_finished_escaping_last": group_finished_last,
     }
 
+
+def build_disability_summary(records):
+    """Same structure as build_demographic_summary, grouped by disability
+    status instead of age band. Always computed from the complete,
+    unfiltered run.
+    """
+    profiles = [r for r in records if r.get("sensorType") == 5]
+    totals = {}
+    for p in profiles:
+        dis = p.get("disability") or "None"
+        totals[dis] = totals.get(dis, 0) + 1
+
+    exit_by_agent = {}
+    for r in records:
+        if r.get("sensorType") == 2 and r.get("hasExited") is True:
+            exit_by_agent[r.get("agentId")] = r
+
+    by_dis_exits = {}
+    for agent_id, r in exit_by_agent.items():
+        dis = r.get("disability") or "None"
+        by_dis_exits.setdefault(dis, []).append({
+            "agentId": agent_id,
+            "time": round(r.get("exitTime", r.get("timestamp", 0)), 2),
+        })
+
+    trapped_by_agent = {}
+    for r in records:
+        if r.get("sensorType") == 2:
+            reason = r.get("trapReason", "")
+            if reason and reason != "None" and not r.get("hasExited", False):
+                trapped_by_agent[r.get("agentId")] = r
+
+    groups = {}
+    for dis, total in totals.items():
+        exits = sorted(by_dis_exits.get(dis, []), key=lambda x: x["time"])
+        trapped_in_group = [
+            {"agentId": aid, "reason": r.get("trapReason", "")}
+            for aid, r in trapped_by_agent.items()
+            if (r.get("disability") or "None") == dis
+        ]
+        groups[dis] = {
+            "total_in_group": total,
+            "escaped_count": len(exits),
+            "first_to_escape": exits[0] if exits else None,
+            "last_to_escape": exits[-1] if exits else None,
+            "trapped_in_group": trapped_in_group,
+        }
+
+    finished_times = {dis: g["last_to_escape"]["time"]
+                       for dis, g in groups.items() if g["last_to_escape"]}
+    group_finished_first = min(finished_times, key=finished_times.get) if finished_times else None
+    group_finished_last  = max(finished_times, key=finished_times.get) if finished_times else None
+
+    return {
+        "by_group": groups,
+        "group_finished_escaping_first": group_finished_first,
+        "group_finished_escaping_last": group_finished_last,
+    }
+
+
+def build_congestion_summary(records):
+    """Always computed from the complete, unfiltered run. At each logged
+    tick, finds whichever zone had the single highest occupancy, then
+    finds when that per-tick busiest value was highest overall, i.e.
+    when the building was most congested. Kept compact, one peak figure
+    plus a coarse timing label, not a full per-tick timeline, to avoid
+    the same token bloat that caused problems earlier in this project.
+    """
+    zone_records = [r for r in records if r.get("sensorType") == 0]
+    if not zone_records:
+        return {
+            "peak_time": None, "peak_zone": None, "peak_occupancy": None,
+            "peak_period": None, "congestion_roughly_constant": None,
+        }
+
+    by_time = {}
+    for r in zone_records:
+        ts  = round(r.get("timestamp", 0), 3)
+        val = r.get("value", 0)
+        loc = r.get("location", "Unknown")
+        if ts not in by_time or val > by_time[ts]["value"]:
+            by_time[ts] = {"zone": loc, "value": val}
+
+    peak_time = max(by_time, key=lambda t: by_time[t]["value"])
+    peak_info = by_time[peak_time]
+    runtime   = max(by_time.keys())
+
+    values = [v["value"] for v in by_time.values()]
+    max_val = max(values) if values else 0
+    value_range = (max_val - min(values)) if values else 0
+    congestion_roughly_constant = (value_range <= max_val * 0.25) if max_val > 0 else True
+
+    frac = (peak_time / runtime) if runtime else 0
+    if frac < 0.33:
+        peak_period = "the first third of the run"
+    elif frac < 0.67:
+        peak_period = "around the middle of the run"
+    else:
+        peak_period = "the final third of the run"
+
+    return {
+        "peak_time":       round(peak_time, 2),
+        "peak_zone":       peak_info["zone"],
+        "peak_occupancy":  peak_info["value"],
+        "peak_period":     peak_period,
+        "congestion_roughly_constant": congestion_roughly_constant,
+    }
+
+
 def summarize(records):
     # ── Sys-Summary (final tick within whatever records were passed in) ──
     summaries = [r for r in records if r.get("sensorId") == "Sys-Summary"]
@@ -137,7 +247,7 @@ def summarize(records):
         age_breakdown[p["ageBand"]] = age_breakdown.get(p["ageBand"], 0) + 1
         disability_breakdown[p["disability"]] = disability_breakdown.get(p["disability"], 0) + 1
 
-   # ── Agent exits (sensorType=2, hasExited=True) ────────────────────────
+    # ── Agent exits (sensorType=2, hasExited=True) ────────────────────────
     exits_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2 and r.get("hasExited") is True:
@@ -166,14 +276,6 @@ def summarize(records):
 
     # ── Zone occupancy: current count per zone as of this filtered
     # window ────────────────────────────────────────────────────────────
-    # Mirrors the dashboard's own Occupancy by Zone chart and Busiest
-    # Zone KPI exactly. Regular zones use each zone's most recent
-    # ZoneOccupancy reading (sensorType 0) within this window. Exit
-    # zones are handled specially, just like in app.py: an exit's live
-    # occupancy reading is basically meaningless (agents pass through
-    # and leave instantly), so exits instead use a cumulative count of
-    # how many agents have exited via that exit so far, built from
-    # agent_exits above rather than from sensorType 0 at all.
     latest_zone_reading = {}
     for r in records:
         if r.get("sensorType") == 0:
@@ -216,14 +318,7 @@ def summarize(records):
             "healthAtTrap": round(r.get("health", 0), 1),
         })
 
-   # ── Average agent health as of this filtered window's latest tick ────
-    # Uses each agent's own most recent reading within this window,
-    # rather than requiring every agent share the exact same timestamp.
-    # Requiring an exact shared timestamp caused this to collapse to a
-    # single stray agent in testing (whichever one happened to log at
-    # that literal instant), instead of averaging across everyone
-    # actually still inside. Taking each agent's own latest reading
-    # gives a representative average regardless of logging timing.
+    # ── Average agent health as of this filtered window's latest tick ────
     latest_health_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2 and not r.get("hasExited", False):
@@ -317,7 +412,7 @@ def summarize(records):
         "vulnerable_still_inside":  vulnerable_inside,
         "critical_health_inside":   critical_health_inside,
         "avg_agent_health_now":     avg_agent_health_now,
-       "zone_occupancy_now":       zone_occupancy_now,
+        "zone_occupancy_now":       zone_occupancy_now,
         "busiest_zone_now":         busiest_zone_now,
         "exit_usage_counts":        exit_usage_counts,
         "busiest_exit":             busiest_exit,
@@ -340,6 +435,8 @@ def summarize(records):
 def build_package(path, start=None, end=None):
     all_records = load_records(path)
     demographic_progression = build_demographic_summary(all_records)
+    disability_progression  = build_disability_summary(all_records)
+    congestion_summary      = build_congestion_summary(all_records)
 
     records = all_records
     if start is not None:
@@ -353,6 +450,8 @@ def build_package(path, start=None, end=None):
         "glossary": GLOSSARY,
         "summary": summary,
         "demographic_escape_progression": demographic_progression,
+        "disability_escape_progression": disability_progression,
+        "congestion_over_time": congestion_summary,
     })
 
 
