@@ -726,7 +726,9 @@ import re
 
 WHATIF_WORDS = ["what if", "suppose", "instead of", "were to", "would happen if"]
 TOTAL_WORDS  = ["total", "overall", "altogether", "by the end", "at the end",
-                "in the end", "final", "entire run", "whole run", "in total"]
+    "in the end", "final", "entire run", "whole run", "in total",
+    "demographic", "age group", "escaped first", "escaped last",
+    "which group"]
 
 def is_what_if(q):
     ql = q.lower()
