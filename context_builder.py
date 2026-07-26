@@ -10,9 +10,10 @@ ENVIRONMENT = {
     "exits": ["Exit 1", "Exit 2", "Exit 3"],
     "exit_notes": {
         "Exit 1": "reached through Main Hall",
-        "Exit 2": "partly blocked by a fixed obstacle, reached through Hallway 2",
+        "Exit 2": "reached through Hallway 2",
         "Exit 3": "reached through Hallway 1"
     },
+"exit_blocking_note": "Any exit can be manually blocked or unblocked at any point during a run as a deliberate researcher intervention. No exit is inherently blocked by default, check the events for whether and when a specific exit was actually blocked in this run.",
     "sensors": {
         "zone_occupancy": "one counter per zone and exit",
         "smoke_detectors": "placed in hallways and key zones, report Clear or Smoke detected per tick",
