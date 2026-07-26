@@ -90,6 +90,21 @@ Additional rules for this question specifically:
     per item, rather than one dense paragraph. Use plain paragraphs
     only for a single, simple point. A stressed reader should be able
     to scan the answer quickly, not parse a wall of text.
+14. disability_escape_progression uses the same structure as
+    demographic_escape_progression, but grouped by disability status
+    (for example None, or MobilityAid) instead of age band. Always
+    covers the complete run. Use group_finished_escaping_first and
+    group_finished_escaping_last for questions about which disability
+    group escaped first or last, the same way as the age group version.
+15. congestion_over_time always covers the complete run. peak_time and
+    peak_zone name the single moment and zone with the highest agent
+    count anywhere in the run. peak_period gives a plain description
+    of roughly when that happened (first third, middle, or final third
+    of the run). congestion_roughly_constant is true if occupancy
+    levels stayed similar throughout rather than spiking at one point.
+    Use these directly for any question about when or where congestion
+    peaked, do not try to infer this from zone_occupancy_now, which
+    only reflects a single moment, not the whole run.
 """
 
 # 1. The key question, who did not escape and why.
