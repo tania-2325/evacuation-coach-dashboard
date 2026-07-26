@@ -116,6 +116,11 @@ Additional rules for this question specifically:
     matching the dashboard's Disabled Inside card exactly. Use this
     directly rather than deriving it from disability_breakdown, which
     is a total count across the whole simulation regardless of time.
+18. No exit is inherently or permanently blocked. Any exit can be
+    manually blocked or unblocked at any moment during a run, as a
+    deliberate researcher action. Never assume Exit 2 or any other
+    exit is blocked by default, always check blocked_exits for whether
+    and when a specific exit was actually blocked in this run.
 """
 
 # 1. The key question, who did not escape and why.
