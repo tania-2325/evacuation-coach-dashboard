@@ -228,8 +228,20 @@ def load_all(file_content):
     timeline  = zone_df.pivot_table(
         index="timestamp", columns="location",
         values="value", aggfunc="last"
-    ).reset_index().fillna(0)
+    ).reset_index()
     timeline  = timeline.sort_values("timestamp").reset_index(drop=True)
+
+    # Zones only log a new reading when their occupancy actually changes,
+    # not on every single tick, so most rows here have gaps for zones
+    # that didn't change at that exact moment. The old fillna(0) treated
+    # every gap as "zero people here", which is what caused zones to
+    # flicker to 0 and back even when nothing had actually changed.
+    # Forward-filling carries each zone's last known value ahead until
+    # it gets an actual new reading. Only time before a zone's very
+    # first-ever reading has no prior value to carry, so that genuinely
+    # defaults to 0.
+    zone_cols = [c for c in timeline.columns if c != "timestamp"]
+    timeline[zone_cols] = timeline[zone_cols].ffill().fillna(0)
 
     KEY_MAP = {
         "Inside": "inside", "Exited": "exited", "Trapped": "trapped",
