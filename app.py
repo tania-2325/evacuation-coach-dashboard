@@ -275,12 +275,14 @@ def load_all(file_content):
     profiles = [r for r in rows if r.get("sensorType") == 5]
     age_counts = {}
     disability_counts = {}
+    disabled_agent_ids = set()
     for p in profiles:
         age = p.get("ageBand", "Unknown")
         dis = p.get("disability", "None")
         age_counts[age] = age_counts.get(age, 0) + 1
         disability_counts[dis] = disability_counts.get(dis, 0) + 1
-
+        if dis and dis not in ("None", ""):
+            disabled_agent_ids.add(p.get("agentId"))
     events = []
     # Exit records (sensorType 2, hasExited=True) repeat every tick after
     # an agent exits, since their tracker keeps logging telemetry even
@@ -332,8 +334,7 @@ def load_all(file_content):
 
     return (timeline, summary_df, smoke_timeline, health_timeline,
             events, exit_events, age_counts, disability_counts,
-            total_agents, runtime)
-
+            total_agents, runtime, disabled_agent_ids)
 
 @st.cache_data
 def get_context_tmp_path(file_content):
@@ -365,7 +366,7 @@ def heat_color(intensity, alpha=0.9):
 
 
 # ── Load ──────────────────────────────────────────────────────────────────────
-timeline_df, summary_df, smoke_timeline, health_timeline, events, exit_events, age_counts, disability_counts, total_agents, runtime = load_all(file_content)
+timeline_df, summary_df, smoke_timeline, health_timeline, events, exit_events, age_counts, disability_counts, total_agents, runtime, disabled_agent_ids = load_all(file_content)
 context_tmp_path = get_context_tmp_path(file_content)
 total_frames = len(timeline_df)
 max_occ      = max(
@@ -394,6 +395,12 @@ for e in [ev for ev in exit_events if ev["exit_time"] <= current_time]:
         cumulative_exits[loc] = cumulative_exits.get(loc, 0) + 1
 for loc in EXIT_ZONES:
     zone_counts[loc] = cumulative_exits.get(loc, 0)
+
+disabled_exited_by_now = sum(
+    1 for e in exit_events
+    if e.get("agentId") in disabled_agent_ids and e["exit_time"] <= current_time
+)
+disabled_inside_now = len(disabled_agent_ids) - disabled_exited_by_now
 
 busiest = max(zone_counts, key=zone_counts.get)
 
@@ -475,6 +482,7 @@ with c3:
 st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
 
 trapped_card  = "kpi-card-vuln" if trapped_now > 0 else "kpi-card-neutral"
+disabled_card = "kpi-card-vuln" if disabled_inside_now > 0 else "kpi-card-neutral"
 kpi_defs = [
     ("Total Agents",    f"{total_agents}",       "in this simulation",
      "", "kpi-badge-grey", "👥", "kpi-card-neutral",
@@ -485,6 +493,9 @@ kpi_defs = [
     ("Agents Trapped", f"{trapped_now}",    f"confirmed trapped at {current_time:.1f}s",
      "kpi-warn" if trapped_now > 0 else "", "kpi-badge-yellow", "⚠️", trapped_card,
      "Agents confirmed unable to escape, for example blocked by fire, as of the current time. Does not include agents still evacuating who simply have not exited yet."),
+    ("Disabled Inside", f"{disabled_inside_now}", f"of {len(disabled_agent_ids)} at {current_time:.1f}s",
+     "kpi-warn" if disabled_inside_now > 0 else "", "kpi-badge-yellow", "♿", disabled_card,
+     "Agents with a disability (such as a mobility aid) who are still inside and have not exited, as of the current time."),
     ("Busiest Zone",    f"{busiest}",             f"{zone_counts[busiest]} agents at {current_time:.1f}s",
      "", "kpi-badge-grey", "📍", "kpi-card-neutral",
      "The zone with the highest agent count right now."),
@@ -494,7 +505,7 @@ kpi_defs = [
 ]
 
 for col, (label, value, sub, val_cls, badge_cls, icon, card_cls, tooltip) in zip(
-    st.columns(5), kpi_defs
+    st.columns(6), kpi_defs
 ):
     col.markdown(f"""
     <div class="kpi-card {card_cls}" title="{tooltip}">
