@@ -137,7 +137,7 @@ def summarize(records):
         age_breakdown[p["ageBand"]] = age_breakdown.get(p["ageBand"], 0) + 1
         disability_breakdown[p["disability"]] = disability_breakdown.get(p["disability"], 0) + 1
 
-    # ── Agent exits (sensorType=2, hasExited=True) ────────────────────────
+   # ── Agent exits (sensorType=2, hasExited=True) ────────────────────────
     exits_by_agent = {}
     for r in records:
         if r.get("sensorType") == 2 and r.get("hasExited") is True:
@@ -155,7 +155,7 @@ def summarize(records):
             "visDamage":    round(r.get("visibilityDamageTotal", 0), 2),
             "path":         r.get("eventDetails", ""),
         })
-   agent_exits.sort(key=lambda x: x["exitTime"])
+    agent_exits.sort(key=lambda x: x["exitTime"])
 
     # ── Exit usage: how many agents escaped through each named exit ──────
     exit_usage_counts = {}
