@@ -74,6 +74,10 @@ Additional rules for this question specifically:
     inside by_group for a specific group's escape times and any trapped
     members to explain why, using details like trap reason, rather than
     assuming age itself caused a difference unless the data supports it.
+12. exit_usage_counts shows how many agents have escaped through each
+    named exit, and busiest_exit names whichever exit has been used by
+    the most agents so far, use these directly for any question about
+    which exit was used most or how many escaped through a specific exit.
 """
 
 # 1. The key question, who did not escape and why.
