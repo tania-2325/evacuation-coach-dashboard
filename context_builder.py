@@ -32,6 +32,7 @@ GLOSSARY = {
     "Busiest Zone": "The zone (room or hallway) with the highest agent occupancy count at the current time.",
     "Runtime": "How long the simulation has been running, in seconds, up to the current time shown.",
     "Recent Activity": "A live list of the most recent timed events in the run, such as smoke being detected in a zone, an agent starting to evacuate, or an agent exiting the building, shown up to the current time.",
+    "Demographic Escape Progression": "A chart of the complete run showing how many agents from each age group (Young, Adult, Elderly) remain inside over time, starting at that group's total headcount and stepping down as members exit. Always shows the whole run, not just the current dashboard moment.",
 }
 
 
@@ -47,6 +48,63 @@ def load_records(path):
                     continue
     return records
 
+def build_demographic_summary(records):
+    """Always computed from the complete, unfiltered run, matching the
+    static Demographic Escape Progression chart on the dashboard, which
+    also always shows the whole run regardless of the timeline slider.
+    """
+    profiles = [r for r in records if r.get("sensorType") == 5]
+    totals = {}
+    for p in profiles:
+        age = p.get("ageBand", "Unknown")
+        totals[age] = totals.get(age, 0) + 1
+
+    exit_by_agent = {}
+    for r in records:
+        if r.get("sensorType") == 2 and r.get("hasExited") is True:
+            exit_by_agent[r.get("agentId")] = r
+
+    by_age_exits = {}
+    for agent_id, r in exit_by_agent.items():
+        age = r.get("ageBand", "Unknown")
+        by_age_exits.setdefault(age, []).append({
+            "agentId": agent_id,
+            "time": round(r.get("exitTime", r.get("timestamp", 0)), 2),
+        })
+
+    trapped_by_agent = {}
+    for r in records:
+        if r.get("sensorType") == 2:
+            reason = r.get("trapReason", "")
+            if reason and reason != "None" and not r.get("hasExited", False):
+                trapped_by_agent[r.get("agentId")] = r
+
+    groups = {}
+    for age, total in totals.items():
+        exits = sorted(by_age_exits.get(age, []), key=lambda x: x["time"])
+        trapped_in_group = [
+            {"agentId": aid, "reason": r.get("trapReason", "")}
+            for aid, r in trapped_by_agent.items()
+            if r.get("ageBand") == age
+        ]
+        groups[age] = {
+            "total_in_group": total,
+            "escaped_count": len(exits),
+            "first_to_escape": exits[0] if exits else None,
+            "last_to_escape": exits[-1] if exits else None,
+            "trapped_in_group": trapped_in_group,
+        }
+
+    finished_times = {age: g["last_to_escape"]["time"]
+                       for age, g in groups.items() if g["last_to_escape"]}
+    group_finished_first = min(finished_times, key=finished_times.get) if finished_times else None
+    group_finished_last  = max(finished_times, key=finished_times.get) if finished_times else None
+
+    return {
+        "by_group": groups,
+        "group_finished_escaping_first": group_finished_first,
+        "group_finished_escaping_last": group_finished_last,
+    }
 
 def summarize(records):
     # ── Sys-Summary (final tick within whatever records were passed in) ──
@@ -271,8 +329,10 @@ def summarize(records):
 
 
 def build_package(path, start=None, end=None):
-    records = load_records(path)
+    all_records = load_records(path)
+    demographic_progression = build_demographic_summary(all_records)
 
+    records = all_records
     if start is not None:
         records = [r for r in records if r.get("timestamp", 0) >= start]
     if end is not None:
@@ -283,6 +343,7 @@ def build_package(path, start=None, end=None):
         "environment": ENVIRONMENT,
         "glossary": GLOSSARY,
         "summary": summary,
+        "demographic_escape_progression": demographic_progression,
     })
 
 
