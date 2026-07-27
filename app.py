@@ -695,7 +695,9 @@ with right_col:
         df_bar = pd.DataFrame({
             "Zone":   list(zone_counts.keys()),
             "Agents": list(zone_counts.values()),
-        }).sort_values("Agents", ascending=True)
+        })
+        df_bar = df_bar.sort_values("Agents", ascending=False).head(9)
+        df_bar = df_bar.sort_values("Agents", ascending=True)
         fig_bar = go.Figure(go.Bar(
             x=df_bar["Agents"], y=df_bar["Zone"], orientation="h",
             marker=dict(
@@ -714,9 +716,7 @@ with right_col:
                        title=dict(text="Agents", font=dict(size=11, color=C["soft"])),
                        tickfont=dict(size=11),
                        fixedrange=True),
-           yaxis=dict(color=C["text"], tickfont=dict(size=9), fixedrange=True,
-                       tickmode="array", tickvals=df_bar["Zone"], ticktext=df_bar["Zone"],
-                       automargin=True),
+           yaxis=dict(color=C["text"], tickfont=dict(size=13), fixedrange=True),
                         showlegend=False,
         )
         st.plotly_chart(fig_bar, use_container_width=True,
