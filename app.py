@@ -709,12 +709,15 @@ with right_col:
             height=BAR_H, autosize=True,
             paper_bgcolor=C["bg"], plot_bgcolor=C["bg"],
             margin=dict(l=8, r=32, t=8, b=30),
+            bargap=0.15,
             xaxis=dict(gridcolor=C["border"], color=C["soft"],
                        title=dict(text="Agents", font=dict(size=11, color=C["soft"])),
                        tickfont=dict(size=11),
                        fixedrange=True),
-            yaxis=dict(color=C["text"], tickfont=dict(size=13), fixedrange=True),
-            showlegend=False,
+           yaxis=dict(color=C["text"], tickfont=dict(size=9), fixedrange=True,
+                       tickmode="array", tickvals=df_bar["Zone"], ticktext=df_bar["Zone"],
+                       automargin=True),
+                        showlegend=False,
         )
         st.plotly_chart(fig_bar, use_container_width=True,
                         config={"displayModeBar": False}, key="bar_chart")
