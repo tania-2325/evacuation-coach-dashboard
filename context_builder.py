@@ -353,7 +353,7 @@ def summarize(records):
     # ── Other simulation events (exit blocked, warnings, etc.) ───────────
     warnings, flees, blocks, other_events = [], [], [], []
     for r in records:
-        if r.get("sensorType") == 3 and r.get("sensorId") != "Sys-Summary" \
+        if r.get("sensorType") in (3, 7) and r.get("sensorId") != "Sys-Summary" \
                 and not str(r.get("sensorId","")).startswith("EVENT-Evac"):
             sid    = str(r.get("sensorId", ""))
             detail = r.get("eventDetails", "")
@@ -362,7 +362,7 @@ def summarize(records):
                 warnings.append(f"At {t}s, {detail}")
             elif sid.startswith("EVENT-Flee"):
                 flees.append(f"At {t}s, {detail}")
-            elif sid.startswith("EVENT-Exit") or sid.startswith("EVENT-UserBlock"):
+            elif sid.startswith("EVENT-Exit") or sid.startswith("EVENT-UserBlock") or sid.startswith("EVENT-Obstacle"):
                 blocks.append(f"At {t}s, {detail}")
             else:
                 other_events.append(f"At {t}s [{sid}] {detail}")
