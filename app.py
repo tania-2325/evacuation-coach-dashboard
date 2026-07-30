@@ -420,6 +420,7 @@ for e in [ev for ev in exit_events if ev["exit_time"] <= current_time]:
         cumulative_exits[loc] = cumulative_exits.get(loc, 0) + 1
 for loc in EXIT_ZONES:
     zone_counts[loc] = cumulative_exits.get(loc, 0)
+    zone_has_data[loc] = True
 
 disabled_exited_by_now = sum(
     1 for e in exit_events
