@@ -241,7 +241,7 @@ def load_all(file_content):
     # first-ever reading has no prior value to carry, so that genuinely
     # defaults to 0.
     zone_cols = [c for c in timeline.columns if c != "timestamp"]
-    timeline[zone_cols] = timeline[zone_cols].ffill().fillna(0)
+    timeline[zone_cols] = timeline[zone_cols].ffill()
 
     KEY_MAP = {
         "Inside": "inside", "Exited": "exited", "Trapped": "trapped",
@@ -410,7 +410,8 @@ frame_idx    = st.session_state.current_frame
 row          = timeline_df.iloc[frame_idx]
 current_time = float(row["timestamp"])
 context_pkg  = build_package(context_tmp_path, end=current_time)
-zone_counts  = {z: int(row[z]) if z in row else 0 for z in BUILDING_LAYOUT}
+zone_counts  = {z: (int(row[z]) if z in row and pd.notna(row[z]) else 0) for z in BUILDING_LAYOUT}
+zone_has_data = {z: bool(z in row and pd.notna(row[z])) for z in BUILDING_LAYOUT}
 
 cumulative_exits = {}
 for e in [ev for ev in exit_events if ev["exit_time"] <= current_time]:
@@ -558,6 +559,7 @@ with left_col:
     hover_x, hover_y, hover_text = [], [], []
     for zone, pos in BUILDING_LAYOUT.items():
         occ       = zone_counts.get(zone, 0)
+        has_data  = zone_has_data.get(zone, True)
         intensity = min(occ / max_occ, 1.0)
         fill      = heat_color(intensity)
         txt_col   = "#ffffff" if intensity > 0.45 else C["text"]
@@ -576,9 +578,10 @@ with left_col:
                 line=dict(color="rgba(70,70,90,0.55)", width=1.5, dash="dot"),
                 layer="above",
             )
-        label_text = f"<b>{zone}</b><br>{occ}"
+        occ_display = occ if has_data else "—"
+        label_text = f"<b>{zone}</b><br>{occ_display}"
         if zone in smoke_zones_now:
-            label_text = f"<b>{zone}</b><br>{occ} 💨"
+            label_text = f"<b>{zone}</b><br>{occ_display} 💨"
         fig.add_annotation(
             x=pos["x"]+pos["width"]/2, y=pos["y"]+pos["height"]/2,
             text=label_text, showarrow=False,
@@ -592,7 +595,7 @@ with left_col:
         smoke_status = "Smoke present" if zone in smoke_zones_now else "Clear, no smoke detected"
         hover_x.append(pos["x"] + pos["width"] / 2)
         hover_y.append(pos["y"] + pos["height"] / 2)
-        hover_text.append(f"<b>{zone}</b><br>Agents inside: {occ}<br>{smoke_status}")
+        hover_text.append(f"<b>{zone}</b><br>Agents inside: {occ_display}<br>{smoke_status}")
 
     # Invisible hover layer, one point per zone, sized to roughly cover
     # each zone's area so hovering anywhere over a zone shows its data.
