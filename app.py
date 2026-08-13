@@ -2,7 +2,7 @@
 Evacuation Coach Dashboard — Streamlit Cloud version
 Setup:  pip install streamlit pandas plotly requests
 Run locally:  streamlit run app.py
-Deploy: push to GitHub, deploy via share.streamlit.io, add GROQ_API_KEY in Secrets.
+Deploy: push to GitHub, deploy via share.streamlit.io
 """
 
 import json
